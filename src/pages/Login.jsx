@@ -5,6 +5,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
+import { initializeTeacherSubscription } from "../utils/subscriptionInit";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Input from "../components/Input";
@@ -128,6 +129,15 @@ const Login = () => {
           status: "pending",
           createdAt: new Date(),
         });
+      }
+
+      // If teacher registration, initialize Free plan subscription
+      if (formData.role === "teacher") {
+        const subscriptionResult = await initializeTeacherSubscription(userCredential.user.uid);
+        if (!subscriptionResult.success) {
+          console.error("Failed to initialize subscription:", subscriptionResult.message);
+          // Don't block registration if subscription init fails
+        }
       }
 
       // Navigation will be handled by AuthContext

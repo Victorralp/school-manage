@@ -6,10 +6,11 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { SchoolSubscriptionProvider } from "./context/SchoolSubscriptionContext";
 import { useEffect } from "react";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
 import SchoolDashboard from "./pages/School/SchoolDashboard";
-import TeacherDashboard from "./pages/Teacher/TeacherDashboard";
+import TeacherRoutes from "./pages/Teacher/TeacherRoutes";
 import StudentDashboard from "./pages/Student/StudentDashboard";
 import TakeExam from "./pages/Student/Exam/TakeExam";
 import Login from "./pages/Login";
@@ -17,6 +18,7 @@ import AdminSetup from "./pages/AdminSetup";
 import TestFirebase from "./pages/TestFirebase";
 import CheckAccounts from "./pages/CheckAccounts";
 import Welcome from "./pages/Welcome";
+import JoinSchoolPage from "./pages/JoinSchoolPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
 
 function AppContent() {
@@ -59,6 +61,7 @@ function AppContent() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/join-school" element={<JoinSchoolPage />} />
       <Route path="/admin-setup" element={<AdminSetup />} />
       <Route path="/test-firebase" element={<TestFirebase />} />
       <Route path="/check-accounts" element={<CheckAccounts />} />
@@ -88,7 +91,7 @@ function AppContent() {
         path="/teacher/*"
         element={
           <ProtectedRoute requiredRole="teacher">
-            <TeacherDashboard />
+            <TeacherRoutes />
           </ProtectedRoute>
         }
       />
@@ -123,7 +126,9 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <AppContent />
+      <SchoolSubscriptionProvider>
+        <AppContent />
+      </SchoolSubscriptionProvider>
     </Router>
   );
 }

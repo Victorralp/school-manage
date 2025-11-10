@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase/config";
 import { useAuth } from "../../context/AuthContext";
+import { useSchoolSubscription } from "../../context/SchoolSubscriptionContext";
 import Layout from "../../components/Layout";
 import Card from "../../components/Card";
 import Table from "../../components/Table";
@@ -20,9 +21,22 @@ import Button from "../../components/Button";
 import Input from "../../components/Input";
 import Modal from "../../components/Modal";
 import Alert from "../../components/Alert";
+import LimitWarning from "../../components/Subscription/LimitWarning";
+import SchoolSubscriptionWidget from "../../components/Subscription/SchoolSubscriptionWidget";
 
 const TeacherDashboard = () => {
   const { user, userData } = useAuth();
+  const { 
+    checkLimit, 
+    incrementUsage, 
+    decrementUsage, 
+    subjectUsage, 
+    studentUsage,
+    isNearLimit,
+    school,
+    isAdmin,
+    teacherUsage
+  } = useSchoolSubscription();
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
   const [results, setResults] = useState([]);
@@ -33,6 +47,8 @@ const TeacherDashboard = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
   const [showMathTools, setShowMathTools] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitModalType, setLimitModalType] = useState(null);
 
   // Form states
   const [examForm, setExamForm] = useState({
@@ -199,6 +215,13 @@ const TeacherDashboard = () => {
       return;
     }
 
+    // Check subscription limit before creating exam
+    if (!checkLimit('subject')) {
+      setLimitModalType('subject');
+      setShowLimitModal(true);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -227,6 +250,9 @@ const TeacherDashboard = () => {
           questionNumber: i + 1,
         });
       }
+
+      // Increment usage count after successful creation
+      await incrementUsage('subject');
 
       showAlert("success", `Exam created successfully! Code: ${examCode}`);
       setShowCreateModal(false);
@@ -269,6 +295,9 @@ const TeacherDashboard = () => {
 
         // Delete exam document
         await deleteDoc(doc(db, "exams", examId));
+
+        // Decrement usage count after successful deletion
+        await decrementUsage('subject');
 
         showAlert("success", "Exam deleted successfully");
         fetchTeacherData();
@@ -476,6 +505,19 @@ const TeacherDashboard = () => {
           className="mb-6"
         />
       )}
+
+      {/* Limit Warning Component */}
+      <LimitWarning 
+        onUpgradeClick={() => {
+          // Navigate to subscription settings
+          window.location.href = '/teacher/subscription';
+        }}
+      />
+
+      {/* School Subscription Widget */}
+      <div className="mb-6">
+        <SchoolSubscriptionWidget />
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -1361,6 +1403,82 @@ const TeacherDashboard = () => {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Limit Reached Modal */}
+      <Modal
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        title="Limit Reached"
+        size="md"
+        closeOnOverlayClick={false}
+      >
+        <div className="space-y-4">
+          {/* Icon */}
+          <div className="flex justify-center">
+            <div className="rounded-full bg-red-100 p-3">
+              <svg
+                className="h-12 w-12 text-red-600"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+              </svg>
+            </div>
+          </div>
+
+          {/* Message */}
+          <div className="text-center">
+            <p className="text-gray-700 mb-4">
+              {limitModalType === 'subject' 
+                ? `You've reached your subject limit of ${subjectUsage.limit}. Upgrade your plan to add more subjects.`
+                : `You've reached your student limit of ${studentUsage.limit}. Upgrade your plan to add more students.`
+              }
+            </p>
+            
+            {school && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                <p className="text-sm text-gray-600 mb-2">Current Plan:</p>
+                <p className="text-lg font-semibold text-gray-900 capitalize">
+                  {school.planTier} Plan
+                </p>
+                <div className="mt-3 text-sm text-gray-600">
+                  <p>Subjects: {subjectUsage.current} / {subjectUsage.limit}</p>
+                  <p>Students: {studentUsage.current} / {studentUsage.limit}</p>
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600">
+              Upgrade to a higher plan to continue adding {limitModalType}s and unlock more features.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Buttons */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+          <Button
+            variant="outline"
+            fullWidth
+            onClick={() => setShowLimitModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => {
+              setShowLimitModal(false);
+              window.location.href = '/teacher/subscription';
+            }}
+          >
+            Upgrade Now
+          </Button>
+        </div>
       </Modal>
     </Layout>
   );

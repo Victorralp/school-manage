@@ -15,6 +15,7 @@ import Table from "../../components/Table";
 import Button from "../../components/Button";
 import Modal from "../../components/Modal";
 import Alert from "../../components/Alert";
+import SubscriptionMetrics from "./SubscriptionMetrics";
 
 const AdminDashboard = () => {
   const [schools, setSchools] = useState([]);
@@ -297,7 +298,7 @@ const AdminDashboard = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {["overview", "schools", "teachers", "students", "exams"].map(
+            {["overview", "schools", "teachers", "students", "exams", "subscriptions"].map(
               (tab) => (
                 <button
                   key={tab}
@@ -476,6 +477,10 @@ const AdminDashboard = () => {
             emptyMessage="No exams created"
           />
         </Card>
+      )}
+
+      {activeTab === "subscriptions" && (
+        <SubscriptionMetrics />
       )}
     </Layout>
   );
