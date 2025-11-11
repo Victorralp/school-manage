@@ -2,6 +2,7 @@
  * Subscription Data Models and Constants
  * Defines the structure for subscription plans and related data
  * SCHOOL-BASED MODEL: Schools pay for subscriptions, teachers belong to schools
+ * LIMITS ARE PER TEACHER: Each teacher can register up to the limit (e.g., 3 subjects per teacher)
  */
 
 // Plan tier constants
@@ -32,15 +33,16 @@ export const SCHOOL_ROLES = {
 };
 
 // Plan configuration with limits and pricing
+// NOTE: Limits are PER TEACHER, not school-wide
 export const PLAN_CONFIG = {
   free: {
     name: "Free Plan",
     price: { NGN: 0, USD: 0 },
-    subjectLimit: 3,
-    studentLimit: 10,
+    subjectLimit: 3, // Per teacher
+    studentLimit: 10, // Per teacher
     features: [
-      "Basic subject management",
-      "Up to 10 students",
+      "3 subjects per teacher",
+      "Up to 10 students per teacher",
       "Limited support"
     ],
     billingCycle: null
@@ -48,11 +50,11 @@ export const PLAN_CONFIG = {
   premium: {
     name: "Premium Plan",
     price: { NGN: 1500, USD: 1 },
-    subjectLimit: 6,
-    studentLimit: { min: 15, max: 20 },
+    subjectLimit: 6, // Per teacher
+    studentLimit: { min: 15, max: 20 }, // Per teacher
     features: [
-      "6 subjects",
-      "15-20 students",
+      "6 subjects per teacher",
+      "15-20 students per teacher",
       "Priority support",
       "Advanced analytics"
     ],
@@ -61,11 +63,11 @@ export const PLAN_CONFIG = {
   vip: {
     name: "VIP Plan",
     price: { NGN: 4500, USD: 3 },
-    subjectLimit: { min: 6, max: 10 },
-    studentLimit: 30,
+    subjectLimit: { min: 6, max: 10 }, // Per teacher
+    studentLimit: 30, // Per teacher
     features: [
-      "6-10 subjects",
-      "30 students",
+      "6-10 subjects per teacher",
+      "30 students per teacher",
       "24/7 support",
       "Custom features",
       "Priority processing"

@@ -6,7 +6,8 @@ The subscription plan system enables teachers to select and manage subscription 
 
 ### Key Design Principles
 
-- **Limit Enforcement**: All subject and student registration operations must validate against current plan limits before execution
+- **Per-Teacher Limits**: All limits are enforced per teacher, not school-wide (e.g., each teacher can register 3 subjects on Free plan)
+- **Limit Enforcement**: All subject and student registration operations must validate against current teacher's plan limits before execution
 - **Data Retention**: Downgrading plans never deletes existing data, only prevents new registrations beyond limits
 - **Payment Integration**: Seamless integration with Paystack for Nigerian market (Naira) with USD fallback
 - **Real-time Updates**: Subscription status and usage metrics update in real-time using Firestore listeners
@@ -60,9 +61,9 @@ The subscription plan system enables teachers to select and manage subscription 
   planTier: string,               // "free" | "premium" | "vip"
   status: string,                 // "active" | "expired" | "grace_period"
   
-  // Limits
-  subjectLimit: number,           // 3, 6, or 6-10
-  studentLimit: number,           // 10, 15-20, or 30
+  // Limits (PER TEACHER)
+  subjectLimit: number,           // 3, 6, or 6-10 per teacher
+  studentLimit: number,           // 10, 15-20, or 30 per teacher
   
   // Usage tracking
   currentSubjects: number,        // Current count of registered subjects
@@ -94,9 +95,9 @@ The subscription plan system enables teachers to select and manage subscription 
   free: {
     name: "Free Plan",
     price: { NGN: 0, USD: 0 },
-    subjectLimit: 3,
-    studentLimit: 10,
-    features: ["Basic subject management", "Up to 10 students", "Limited support"]
+    subjectLimit: 3,              // Per teacher
+    studentLimit: 10,             // Per teacher
+    features: ["3 subjects per teacher", "Up to 10 students per teacher", "Limited support"]
   },
   premium: {
     name: "Premium Plan",

@@ -118,11 +118,30 @@ export const subscribeToSchool = (schoolId, callback) => {
  * @returns {Promise<object|null>} - The teacher document or null
  */
 export const getTeacherSchoolRelationship = async (teacherId) => {
+  // First try to get from teachers collection
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   const teacherDoc = await getDoc(teacherRef);
   
   if (teacherDoc.exists()) {
     return { id: teacherDoc.id, ...teacherDoc.data() };
+  }
+  
+  // Fallback: Get schoolId from users collection
+  const userRef = doc(db, 'users', teacherId);
+  const userDoc = await getDoc(userRef);
+  
+  if (userDoc.exists()) {
+    const userData = userDoc.data();
+    if (userData.schoolId) {
+      // Return a basic relationship object
+      return {
+        teacherId: teacherId,
+        schoolId: userData.schoolId,
+        role: userData.role === 'school' ? 'admin' : 'teacher',
+        currentSubjects: 0,
+        currentStudents: 0
+      };
+    }
   }
   
   return null;
@@ -198,24 +217,24 @@ export const incrementUsage = async (teacherId, type) => {
     throw new Error('Teacher not found in any school');
   }
   
-  const batch = writeBatch(db);
   const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
   
-  // Update teacher's individual usage
+  // Update teacher's individual usage using set with merge to handle non-existent docs
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
-  batch.update(teacherRef, {
+  await setDoc(teacherRef, {
+    teacherId: teacherId,
+    schoolId: teacherRelationship.schoolId,
+    role: teacherRelationship.role || 'teacher',
     [field]: increment(1),
     updatedAt: serverTimestamp()
-  });
+  }, { merge: true });
   
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
-  batch.update(schoolRef, {
+  await setDoc(schoolRef, {
     [field]: increment(1),
     updatedAt: serverTimestamp()
-  });
-  
-  await batch.commit();
+  }, { merge: true });
 };
 
 /**
@@ -231,24 +250,24 @@ export const decrementUsage = async (teacherId, type) => {
     throw new Error('Teacher not found in any school');
   }
   
-  const batch = writeBatch(db);
   const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
   
-  // Update teacher's individual usage
+  // Update teacher's individual usage using set with merge
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
-  batch.update(teacherRef, {
+  await setDoc(teacherRef, {
+    teacherId: teacherId,
+    schoolId: teacherRelationship.schoolId,
+    role: teacherRelationship.role || 'teacher',
     [field]: increment(-1),
     updatedAt: serverTimestamp()
-  });
+  }, { merge: true });
   
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
-  batch.update(schoolRef, {
+  await setDoc(schoolRef, {
     [field]: increment(-1),
     updatedAt: serverTimestamp()
-  });
-  
-  await batch.commit();
+  }, { merge: true });
 };
 
 /**

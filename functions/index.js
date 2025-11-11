@@ -324,10 +324,10 @@ async function downgradeToFreePlan(teacherId, subscription) {
     const currentSubjects = subscription.currentSubjects || 0;
     const currentStudents = subscription.currentStudents || 0;
 
-    // Free plan limits
+    // Free plan limits (PER TEACHER)
     const freePlanLimits = {
-      subjectLimit: 3,
-      studentLimit: 10,
+      subjectLimit: 3, // Per teacher
+      studentLimit: 10, // Per teacher
     };
 
     // Check if current usage exceeds Free plan limits

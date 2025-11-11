@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This document defines the requirements for a school-based subscription plan system that enables schools to manage subscriptions while teachers register subjects and students. The system provides three tiers (Free, Premium, and VIP) with different limits on the number of subjects and students that can be registered across all teachers in a school.
+This document defines the requirements for a school-based subscription plan system that enables schools to manage subscriptions while teachers register subjects and students. The system provides three tiers (Free, Premium, and VIP) with different limits on the number of subjects and students that can be registered per teacher (not school-wide).
 
 ## Glossary
 
@@ -13,8 +13,8 @@ This document defines the requirements for a school-based subscription plan syst
 - **Subject**: An academic course or class that a teacher can register in the system
 - **Student**: A learner who can be registered under a teacher's account
 - **Plan Tier**: A subscription level (Free, Premium, or VIP) with specific limits and pricing
-- **Subject Limit**: The maximum number of subjects that can be registered across all teachers in a school based on the school's plan tier
-- **Student Limit**: The maximum number of students that can be registered across all teachers in a school based on the school's plan tier
+- **Subject Limit**: The maximum number of subjects that can be registered per teacher based on the school's plan tier
+- **Student Limit**: The maximum number of students that can be registered per teacher based on the school's plan tier
 - **Payment Gateway**: The external service that processes subscription payments
 - **School-Wide Usage**: The aggregate count of subjects and students across all teachers in a school
 
@@ -27,8 +27,8 @@ This document defines the requirements for a school-based subscription plan syst
 #### Acceptance Criteria
 
 1. WHEN a school admin creates a school, THE Subscription System SHALL assign the Free plan to the school
-2. THE Subscription System SHALL set the subject limit to 3 for the Free plan (school-wide)
-3. THE Subscription System SHALL set the student limit to 10 for the Free plan (school-wide)
+2. THE Subscription System SHALL set the subject limit to 3 per teacher for the Free plan
+3. THE Subscription System SHALL set the student limit to 10 per teacher for the Free plan
 4. THE Subscription System SHALL allow all teachers in the school to access Free plan features without payment information
 5. THE Subscription System SHALL designate the school creator as the school admin with payment privileges
 
@@ -39,8 +39,8 @@ This document defines the requirements for a school-based subscription plan syst
 #### Acceptance Criteria
 
 1. WHEN a school admin selects the Premium plan upgrade, THE Subscription System SHALL display the price as ₦1,500 or $1
-2. WHEN a school admin completes Premium plan payment, THE Subscription System SHALL update the school's subject limit to 6
-3. WHEN a school admin completes Premium plan payment, THE Subscription System SHALL update the school's student limit to a range between 15 and 20
+2. WHEN a school admin completes Premium plan payment, THE Subscription System SHALL update each teacher's subject limit to 6
+3. WHEN a school admin completes Premium plan payment, THE Subscription System SHALL update each teacher's student limit to a range between 15 and 20
 4. WHEN the Premium plan payment is verified, THE Subscription System SHALL activate the Premium plan features for all teachers within 5 minutes
 5. IF payment verification fails, THEN THE Subscription System SHALL maintain the current plan and notify the school admin of the failure
 6. THE Subscription System SHALL only allow school admins to initiate plan upgrades and process payments
@@ -52,8 +52,8 @@ This document defines the requirements for a school-based subscription plan syst
 #### Acceptance Criteria
 
 1. WHEN a school admin selects the VIP plan upgrade, THE Subscription System SHALL display the price as ₦4,500 or $3
-2. WHEN a school admin completes VIP plan payment, THE Subscription System SHALL update the school's subject limit to a range between 6 and 10
-3. WHEN a school admin completes VIP plan payment, THE Subscription System SHALL update the school's student limit to 30
+2. WHEN a school admin completes VIP plan payment, THE Subscription System SHALL update each teacher's subject limit to a range between 6 and 10
+3. WHEN a school admin completes VIP plan payment, THE Subscription System SHALL update each teacher's student limit to 30
 4. WHEN the VIP plan payment is verified, THE Subscription System SHALL activate the VIP plan features for all teachers within 5 minutes
 5. IF payment verification fails, THEN THE Subscription System SHALL maintain the current plan and notify the school admin of the failure
 6. THE Subscription System SHALL only allow school admins to initiate plan upgrades and process payments
@@ -65,8 +65,8 @@ This document defines the requirements for a school-based subscription plan syst
 #### Acceptance Criteria
 
 1. THE Subscription System SHALL display the school's current plan tier name
-2. THE Subscription System SHALL display the number of subjects currently registered across all teachers and the school-wide subject limit
-3. THE Subscription System SHALL display the number of students currently registered across all teachers and the school-wide student limit
+2. THE Subscription System SHALL display the number of subjects currently registered by the teacher and their individual subject limit
+3. THE Subscription System SHALL display the number of students currently registered by the teacher and their individual student limit
 4. THE Subscription System SHALL display the plan expiration date for Premium and VIP plans
 5. THE Subscription System SHALL display the teacher's individual usage (subjects and students registered by this teacher)
 6. WHEN a teacher views plan details, THE Subscription System SHALL display the information within 2 seconds
@@ -78,9 +78,9 @@ This document defines the requirements for a school-based subscription plan syst
 
 #### Acceptance Criteria
 
-1. WHEN any teacher attempts to register a subject beyond the school-wide subject limit, THE Subscription System SHALL reject the registration request
-2. WHEN any teacher attempts to register a student beyond the school-wide student limit, THE Subscription System SHALL reject the registration request
-3. WHEN a registration is rejected due to limits, THE Subscription System SHALL display a message indicating the current school-wide limit and suggest that the school admin upgrade
+1. WHEN any teacher attempts to register a subject beyond their individual subject limit, THE Subscription System SHALL reject the registration request
+2. WHEN any teacher attempts to register a student beyond their individual student limit, THE Subscription System SHALL reject the registration request
+3. WHEN a registration is rejected due to limits, THE Subscription System SHALL display a message indicating the teacher's current limit and suggest that the school admin upgrade
 4. THE Subscription System SHALL validate school-wide limits before allowing any subject or student registration by any teacher
 5. WHEN the school reaches 80 percent of any limit, THE Subscription System SHALL display a warning notification to all teachers
 6. THE Subscription System SHALL track individual teacher usage for reporting purposes while enforcing school-wide limits
@@ -91,10 +91,10 @@ This document defines the requirements for a school-based subscription plan syst
 
 #### Acceptance Criteria
 
-1. THE Subscription System SHALL display all three plan tiers with their names, prices, and limits
-2. THE Subscription System SHALL display the Free plan with 0 cost, 3 subject limit, and 10 student limit
-3. THE Subscription System SHALL display the Premium plan with ₦1,500 cost, 6 subject limit, and 15-20 student limit
-4. THE Subscription System SHALL display the VIP plan with ₦4,500 cost, 6-10 subject limit, and 30 student limit
+1. THE Subscription System SHALL display all three plan tiers with their names, prices, and limits per teacher
+2. THE Subscription System SHALL display the Free plan with 0 cost, 3 subjects per teacher, and 10 students per teacher
+3. THE Subscription System SHALL display the Premium plan with ₦1,500 cost, 6 subjects per teacher, and 15-20 students per teacher
+4. THE Subscription System SHALL display the VIP plan with ₦4,500 cost, 6-10 subjects per teacher, and 30 students per teacher
 5. THE Subscription System SHALL highlight the teacher's current plan in the plan comparison view
 
 ### Requirement 7

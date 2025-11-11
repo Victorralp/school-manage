@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "./AuthContext";
 import { 
@@ -45,7 +45,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               price: { NGN: 0, USD: 0 },
               subjectLimit: 3,
               studentLimit: 10,
-              features: ["Basic subject management", "Up to 10 students", "Limited support"]
+              features: ["3 subjects per teacher", "Up to 10 students per teacher", "Limited support"]
             },
             premium: {
               name: "Premium Plan",
@@ -53,7 +53,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               subjectLimit: 6,
               studentLimit: { min: 15, max: 20 },
               billingCycle: "monthly",
-              features: ["6 subjects", "15-20 students", "Priority support", "Advanced analytics"]
+              features: ["6 subjects per teacher", "15-20 students per teacher", "Priority support", "Advanced analytics"]
             },
             vip: {
               name: "VIP Plan",
@@ -61,7 +61,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               subjectLimit: { min: 6, max: 10 },
               studentLimit: 30,
               billingCycle: "monthly",
-              features: ["6-10 subjects", "30 students", "24/7 support", "Custom features"]
+              features: ["6-10 subjects per teacher", "30 students per teacher", "24/7 support", "Custom features"]
             }
           };
           setAvailablePlans(defaultPlans);
@@ -190,6 +190,35 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     return () => unsubscribe();
   }, [teacherRelationship, availablePlans]);
 
+  // Real-time teacher usage subscription
+  useEffect(() => {
+    if (!user || !teacherRelationship?.teacherId) {
+      return;
+    }
+
+    const teacherRef = doc(db, 'teachers', user.uid);
+    const unsubscribe = onSnapshot(
+      teacherRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const teacherData = docSnapshot.data();
+          // Update teacherRelationship with latest usage data
+          setTeacherRelationship(prev => ({
+            ...prev,
+            currentSubjects: teacherData.currentSubjects || 0,
+            currentStudents: teacherData.currentStudents || 0,
+            updatedAt: teacherData.updatedAt
+          }));
+        }
+      },
+      (error) => {
+        console.error('Error listening to teacher usage:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user, teacherRelationship?.teacherId]);
+
   // Update current plan when school or available plans change
   useEffect(() => {
     if (school && availablePlans) {
@@ -205,26 +234,26 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     return limitValue;
   }, []);
 
-  // Calculate usage metrics (school-wide)
+  // Calculate usage metrics (PER TEACHER - not school-wide)
   const subjectUsage = useMemo(() => {
-    if (!school || !currentPlan) {
+    if (!teacherRelationship || !currentPlan) {
       return { current: 0, limit: 0, percentage: 0 };
     }
     const limit = getActualLimit(currentPlan.subjectLimit);
-    const current = school.currentSubjects || 0;
+    const current = teacherRelationship.currentSubjects || 0;
     const percentage = limit > 0 ? Math.round((current / limit) * 100) : 0;
     return { current, limit, percentage };
-  }, [school, currentPlan, getActualLimit]);
+  }, [teacherRelationship, currentPlan, getActualLimit]);
 
   const studentUsage = useMemo(() => {
-    if (!school || !currentPlan) {
+    if (!teacherRelationship || !currentPlan) {
       return { current: 0, limit: 0, percentage: 0 };
     }
     const limit = getActualLimit(currentPlan.studentLimit);
-    const current = school.currentStudents || 0;
+    const current = teacherRelationship.currentStudents || 0;
     const percentage = limit > 0 ? Math.round((current / limit) * 100) : 0;
     return { current, limit, percentage };
-  }, [school, currentPlan, getActualLimit]);
+  }, [teacherRelationship, currentPlan, getActualLimit]);
 
   // Teacher's individual usage
   const teacherUsage = useMemo(() => {
@@ -265,26 +294,26 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Check if adding new item would exceed school limit
+  // Check if adding new item would exceed teacher's individual limit
   const checkLimit = useCallback((type) => {
-    if (!school || !currentPlan) {
+    if (!teacherRelationship || !currentPlan) {
       return false;
     }
 
     const usage = type === 'subject' ? subjectUsage : studentUsage;
     
-    // Block new registrations if in grace period
-    if (school.status === 'grace_period') {
+    // Block new registrations if school is in grace period
+    if (school?.status === 'grace_period') {
       return false;
     }
     
-    // Block new registrations if current usage already exceeds limit
+    // Block new registrations if teacher's current usage already exceeds their limit
     if (usage.current >= usage.limit) {
       return false;
     }
     
     return usage.current < usage.limit;
-  }, [school, currentPlan, subjectUsage, studentUsage]);
+  }, [teacherRelationship, currentPlan, school, subjectUsage, studentUsage]);
 
   // Helper methods
   const canAddSubject = useCallback(() => {
@@ -306,9 +335,9 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     return school?.status === 'grace_period';
   }, [school]);
 
-  // Check if current usage exceeds limits (after downgrade)
+  // Check if teacher's current usage exceeds their limits (after downgrade)
   const exceedsLimits = useCallback(() => {
-    if (!school || !currentPlan) {
+    if (!teacherRelationship || !currentPlan) {
       return { subjects: false, students: false };
     }
     
@@ -316,7 +345,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
       subjects: subjectUsage.current > subjectUsage.limit,
       students: studentUsage.current > studentUsage.limit,
     };
-  }, [school, currentPlan, subjectUsage, studentUsage]);
+  }, [teacherRelationship, currentPlan, subjectUsage, studentUsage]);
 
   // Validate plan upgrade/downgrade (admin only)
   const validatePlanChange = useCallback((newPlanTier) => {

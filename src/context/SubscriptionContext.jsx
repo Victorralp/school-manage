@@ -33,7 +33,7 @@ export const SubscriptionProvider = ({ children }) => {
               price: { NGN: 0, USD: 0 },
               subjectLimit: 3,
               studentLimit: 10,
-              features: ["Basic subject management", "Up to 10 students", "Limited support"]
+              features: ["3 subjects per teacher", "Up to 10 students per teacher", "Limited support"]
             },
             premium: {
               name: "Premium Plan",
@@ -41,7 +41,7 @@ export const SubscriptionProvider = ({ children }) => {
               subjectLimit: 6,
               studentLimit: { min: 15, max: 20 },
               billingCycle: "monthly",
-              features: ["6 subjects", "15-20 students", "Priority support", "Advanced analytics"]
+              features: ["6 subjects per teacher", "15-20 students per teacher", "Priority support", "Advanced analytics"]
             },
             vip: {
               name: "VIP Plan",
@@ -49,7 +49,7 @@ export const SubscriptionProvider = ({ children }) => {
               subjectLimit: { min: 6, max: 10 },
               studentLimit: 30,
               billingCycle: "monthly",
-              features: ["6-10 subjects", "30 students", "24/7 support", "Custom features"]
+              features: ["6-10 subjects per teacher", "30 students per teacher", "24/7 support", "Custom features"]
             }
           };
           setAvailablePlans(defaultPlans);

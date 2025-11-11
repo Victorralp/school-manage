@@ -24,6 +24,14 @@ import Alert from "../../components/Alert";
 import LimitWarning from "../../components/Subscription/LimitWarning";
 import SchoolSubscriptionWidget from "../../components/Subscription/SchoolSubscriptionWidget";
 import { exportResultsToPDF, exportResultsToExcel } from "../../utils/exportResults";
+import SubjectRegistrationModal from "../../components/Subject/SubjectRegistrationModal";
+import { 
+  registerSubject, 
+  subscribeToTeacherSubjects,
+  deleteSubject,
+  incrementSubjectExamCount,
+  decrementSubjectExamCount
+} from "../../firebase/subjectService";
 
 const TeacherDashboard = () => {
   const { user, userData } = useAuth();
@@ -50,6 +58,9 @@ const TeacherDashboard = () => {
   const [showMathTools, setShowMathTools] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitModalType, setLimitModalType] = useState(null);
+  const [subjects, setSubjects] = useState([]);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [selectedSubject, setSelectedSubject] = useState(null);
 
   // Form states
   const [examForm, setExamForm] = useState({
@@ -70,6 +81,20 @@ const TeacherDashboard = () => {
     if (user) {
       fetchTeacherData();
     }
+  }, [user]);
+
+  // Subscribe to teacher's subjects
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = subscribeToTeacherSubjects(user.uid, (subjectsData, error) => {
+      if (error) {
+        console.error('Error loading subjects:', error);
+        showAlert('error', 'Failed to load subjects');
+        return;
+      }
+      setSubjects(subjectsData || []);
+    });
+    return () => unsubscribe();
   }, [user]);
 
   const fetchTeacherData = async () => {
@@ -201,8 +226,8 @@ const TeacherDashboard = () => {
       return;
     }
 
-    if (!examForm.subject.trim()) {
-      showAlert("error", "Please enter subject");
+    if (!selectedSubject) {
+      showAlert("error", "Please select a subject");
       return;
     }
 
@@ -216,13 +241,6 @@ const TeacherDashboard = () => {
       return;
     }
 
-    // Check subscription limit before creating exam
-    if (!checkLimit('subject')) {
-      setLimitModalType('subject');
-      setShowLimitModal(true);
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -232,7 +250,9 @@ const TeacherDashboard = () => {
       // Create exam document
       const examRef = await addDoc(collection(db, "exams"), {
         title: examForm.title,
-        subject: examForm.subject,
+        subject: selectedSubject.name,
+        subjectId: selectedSubject.id,
+        subjectCode: selectedSubject.code,
         timeLimit: parseInt(examForm.timeLimit),
         examDate: examForm.examDate || null,
         description: examForm.description,
@@ -241,7 +261,7 @@ const TeacherDashboard = () => {
         schoolId: userData?.schoolId || null,
         createdAt: new Date(),
         totalQuestions: questions.length,
-        examCode: examCode, // Add exam code
+        examCode: examCode,
       });
 
       // Create questions subcollection
@@ -252,8 +272,8 @@ const TeacherDashboard = () => {
         });
       }
 
-      // Increment usage count after successful creation
-      await incrementUsage('subject');
+      // Increment subject exam count
+      await incrementSubjectExamCount(selectedSubject.id);
 
       showAlert("success", `Exam created successfully! Code: ${examCode}`);
       setShowCreateModal(false);
@@ -281,11 +301,50 @@ const TeacherDashboard = () => {
       options: ["", "", "", ""],
       correctOption: 0,
     });
+    setSelectedSubject(null);
   };
 
-  const handleDeleteExam = async (examId) => {
+  const handleRegisterSubject = async (subjectData) => {
+    if (!checkLimit('subject')) {
+      setLimitModalType('subject');
+      setShowLimitModal(true);
+      throw new Error('Subject limit reached');
+    }
+    try {
+      setLoading(true);
+      await registerSubject(user.uid, userData?.schoolId, subjectData);
+      await incrementUsage('subject');
+      showAlert('success', `Subject "${subjectData.name}" registered successfully!`);
+    } catch (error) {
+      console.error('Error registering subject:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteSubject = async (subjectId, examCount) => {
+    if (examCount > 0) {
+      showAlert('error', 'Cannot delete subject with existing exams. Delete exams first.');
+      return;
+    }
+    if (window.confirm("Are you sure you want to delete this subject?")) {
+      try {
+        await deleteSubject(subjectId);
+        await decrementUsage('subject');
+        showAlert("success", "Subject deleted successfully");
+      } catch (error) {
+        console.error("Error deleting subject:", error);
+        showAlert("error", "Failed to delete subject");
+      }
+    }
+  };
+
+  const handleDeleteExam = async (exam) => {
     if (window.confirm("Are you sure you want to delete this exam?")) {
       try {
+        const examId = typeof exam === 'string' ? exam : exam.id;
+        
         // Delete questions subcollection
         const questionsSnapshot = await getDocs(
           collection(db, "exams", examId, "questions"),
@@ -297,8 +356,10 @@ const TeacherDashboard = () => {
         // Delete exam document
         await deleteDoc(doc(db, "exams", examId));
 
-        // Decrement usage count after successful deletion
-        await decrementUsage('subject');
+        // Decrement subject exam count if exam has subjectId
+        if (exam.subjectId) {
+          await decrementSubjectExamCount(exam.subjectId);
+        }
 
         showAlert("success", "Exam deleted successfully");
         fetchTeacherData();
@@ -627,8 +688,11 @@ const TeacherDashboard = () => {
           variant="primary"
           size="lg"
           onClick={() => {
-            console.log("Create Exam button clicked");
-            setShowCreateModal(true);
+            if (subjects.length === 0) {
+              setShowSubjectModal(true);
+            } else {
+              setShowCreateModal(true);
+            }
           }}
         >
           <svg
@@ -644,7 +708,7 @@ const TeacherDashboard = () => {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Register New Subject
+          {subjects.length === 0 ? 'Register First Subject' : 'Create New Exam'}
         </Button>
       </div>
 
@@ -652,7 +716,7 @@ const TeacherDashboard = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {["overview", "exams", "results", "students"].map((tab) => (
+            {["overview", "subjects", "exams", "results", "students"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -690,7 +754,7 @@ const TeacherDashboard = () => {
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteExam(row.id)}
+                    onClick={() => handleDeleteExam(row)}
                   >
                     Delete
                   </Button>
@@ -705,6 +769,70 @@ const TeacherDashboard = () => {
               data={results.slice(0, 5)}
               loading={loading}
               emptyMessage="No results yet"
+            />
+          </Card>
+        </div>
+      )}
+
+      {activeTab === "subjects" && (
+        <div className="space-y-6">
+          <Card 
+            title="Your Registered Subjects" 
+            subtitle="Subjects you can create exams for"
+            action={
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setShowSubjectModal(true)}
+                disabled={!checkLimit('subject')}
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Register Subject
+              </Button>
+            }
+          >
+            <Table
+              columns={[
+                { header: "Subject Name", accessor: "name" },
+                { header: "Code", accessor: "code" },
+                { header: "Description", accessor: "description" },
+                { 
+                  header: "Exams", 
+                  render: (row) => row.examCount || 0
+                },
+                {
+                  header: "Created",
+                  render: (row) => row.createdAt?.toDate().toLocaleDateString() || "N/A",
+                },
+              ]}
+              data={subjects}
+              loading={loading}
+              emptyMessage="No subjects registered yet. Click 'Register Subject' to get started."
+              actions={(row) => (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedSubject(row);
+                      setShowCreateModal(true);
+                    }}
+                  >
+                    Create Exam
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDeleteSubject(row.id, row.examCount)}
+                    disabled={row.examCount > 0}
+                    title={row.examCount > 0 ? "Delete all exams first" : "Delete subject"}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
             />
           </Card>
         </div>
@@ -801,7 +929,7 @@ const TeacherDashboard = () => {
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteExam(row.id)}
+                    onClick={() => handleDeleteExam(row)}
                   >
                     Delete
                   </Button>
@@ -887,7 +1015,7 @@ const TeacherDashboard = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Register New Subject & Create Exam"
+        title="Create New Exam"
         size="xl"
         footer={
           <>
@@ -1003,51 +1131,49 @@ const TeacherDashboard = () => {
                 placeholder="e.g., Math Final Exam"
                 required
               />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject <span className="text-red-500">*</span>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Subject <span className="text-red-500">*</span>
                 </label>
-                <select
-                  name="subject"
-                  value={examForm.subject}
-                  onChange={handleExamFormChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a subject</option>
-                  <optgroup label="Mathematics & Sciences">
-                    <option value="Mathematics">Mathematics</option>
-                    <option value="Algebra">Algebra</option>
-                    <option value="Geometry">Geometry</option>
-                    <option value="Calculus">Calculus</option>
-                    <option value="Statistics">Statistics</option>
-                    <option value="Physics">Physics</option>
-                    <option value="Chemistry">Chemistry</option>
-                    <option value="Biology">Biology</option>
-                  </optgroup>
-                  <optgroup label="Languages">
-                    <option value="English">English</option>
-                    <option value="Literature">Literature</option>
-                    <option value="Spanish">Spanish</option>
-                    <option value="French">French</option>
-                  </optgroup>
-                  <optgroup label="Social Studies">
-                    <option value="History">History</option>
-                    <option value="Geography">Geography</option>
-                    <option value="Economics">Economics</option>
-                    <option value="Political Science">Political Science</option>
-                  </optgroup>
-                  <optgroup label="Technology & Arts">
-                    <option value="Computer Science">Computer Science</option>
-                    <option value="Information Technology">Information Technology</option>
-                    <option value="Art">Art</option>
-                    <option value="Music">Music</option>
-                  </optgroup>
-                  <optgroup label="Other">
-                    <option value="General Knowledge">General Knowledge</option>
-                    <option value="Other">Other</option>
-                  </optgroup>
-                </select>
+                {subjects.length === 0 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      You haven't registered any subjects yet. 
+                      <button
+                        onClick={() => {
+                          setShowCreateModal(false);
+                          setShowSubjectModal(true);
+                        }}
+                        className="ml-1 text-yellow-900 font-semibold underline hover:no-underline"
+                      >
+                        Register a subject first
+                      </button>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {subjects.map((subject) => (
+                      <button
+                        key={subject.id}
+                        type="button"
+                        onClick={() => setSelectedSubject(subject)}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                          selectedSubject?.id === subject.id
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-300'
+                        }`}
+                      >
+                        <div className="font-semibold text-gray-900">{subject.name}</div>
+                        <div className="text-xs text-gray-500 mt-1">{subject.code}</div>
+                        {subject.examCount > 0 && (
+                          <div className="text-xs text-blue-600 mt-1">
+                            {subject.examCount} exam{subject.examCount !== 1 ? 's' : ''}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <Input
                 label="Time Limit (minutes)"
@@ -1607,6 +1733,17 @@ const TeacherDashboard = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Subject Registration Modal */}
+      <SubjectRegistrationModal
+        isOpen={showSubjectModal}
+        onClose={() => setShowSubjectModal(false)}
+        onRegister={handleRegisterSubject}
+        loading={loading}
+        canRegister={checkLimit('subject')}
+        currentUsage={subjectUsage?.current || 0}
+        limit={subjectUsage?.limit || 0}
+      />
     </Layout>
   );
 };
