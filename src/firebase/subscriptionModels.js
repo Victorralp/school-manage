@@ -40,9 +40,11 @@ export const PLAN_CONFIG = {
     price: { NGN: 0, USD: 0 },
     subjectLimit: 3, // Per teacher
     studentLimit: 10, // Per teacher
+    questionLimit: 10, // Per exam
     features: [
       "3 subjects per teacher",
       "Up to 10 students per teacher",
+      "10 questions per exam",
       "Limited support"
     ],
     billingCycle: null
@@ -52,9 +54,11 @@ export const PLAN_CONFIG = {
     price: { NGN: 1500, USD: 1 },
     subjectLimit: 6, // Per teacher
     studentLimit: { min: 15, max: 20 }, // Per teacher
+    questionLimit: 30, // Per exam
     features: [
       "6 subjects per teacher",
       "15-20 students per teacher",
+      "Up to 30 questions per exam",
       "Priority support",
       "Advanced analytics"
     ],
@@ -65,9 +69,11 @@ export const PLAN_CONFIG = {
     price: { NGN: 4500, USD: 3 },
     subjectLimit: { min: 6, max: 10 }, // Per teacher
     studentLimit: 30, // Per teacher
+    questionLimit: 100, // Per exam
     features: [
       "6-10 subjects per teacher",
       "30 students per teacher",
+      "Up to 100 questions per exam",
       "24/7 support",
       "Custom features",
       "Priority processing"

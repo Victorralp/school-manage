@@ -266,6 +266,14 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     };
   }, [teacherRelationship]);
 
+  // Get question limit for current plan
+  const questionLimit = useMemo(() => {
+    if (!currentPlan) {
+      return 10; // Default to free plan limit
+    }
+    return currentPlan.questionLimit || 10;
+  }, [currentPlan]);
+
   // Increment usage count
   const incrementUsage = useCallback(async (type) => {
     if (!user) {
@@ -481,6 +489,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     subjectUsage,
     studentUsage,
     teacherUsage,
+    questionLimit,
     incrementUsage,
     decrementUsage,
     checkLimit,

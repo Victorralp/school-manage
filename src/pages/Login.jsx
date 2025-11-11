@@ -3,9 +3,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
 } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
 import { initializeTeacherSubscription } from "../utils/subscriptionInit";
+import { verifyStudentId } from "../firebase/studentService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Input from "../components/Input";
@@ -14,12 +15,14 @@ import Alert from "../components/Alert";
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [loginMethod, setLoginMethod] = useState('email'); // 'email' or 'studentId'
+  const [studentId, setStudentId] = useState('');
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     confirmPassword: "",
     name: "",
-    role: "student",
+    role: "teacher",
     schoolId: "",
     schoolName: "",
   });
@@ -48,18 +51,130 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password,
-      );
+      if (loginMethod === 'studentId') {
+        // Student ID login
+        if (!studentId.trim()) {
+          setError("Please enter your Student ID");
+          setLoading(false);
+          return;
+        }
 
-      // Navigation will be handled by AuthContext
+        // Verify student ID and get student data
+        const student = await verifyStudentId(studentId.trim().toUpperCase());
+        
+        // Check if student has email (required for Firebase Auth)
+        if (!student.email) {
+          setError("This student account doesn't have an email. Please contact your teacher.");
+          setLoading(false);
+          return;
+        }
+
+        // Use Student ID as password (Firebase requires email/password)
+        // This is secure because Student ID is unique and only known to the student
+        const password = studentId.trim().toUpperCase();
+        
+        try {
+          // Try to sign in with email and Student ID as password
+          const userCredential = await signInWithEmailAndPassword(auth, student.email, password);
+          
+          // Check if user document exists for AuthContext
+          const authUserDoc = await getDoc(doc(db, "users", userCredential.user.uid));
+          
+          if (!authUserDoc.exists()) {
+            // Create user document with auth UID if it doesn't exist
+            await setDoc(doc(db, "users", userCredential.user.uid), {
+              name: student.name,
+              email: student.email,
+              phoneNumber: student.phoneNumber,
+              studentId: student.studentId,
+              role: 'student',
+              schoolId: student.schoolId,
+              registeredBy: student.registeredBy,
+              status: 'active',
+              originalDocId: student.id,
+              authUid: userCredential.user.uid,
+              lastLogin: new Date(),
+              createdAt: new Date()
+            });
+          } else {
+            // Update last login
+            await updateDoc(doc(db, "users", userCredential.user.uid), {
+              lastLogin: new Date()
+            });
+          }
+        } catch (signInError) {
+          // If sign-in fails, the account might not exist yet
+          // Create account with Student ID as password
+          if (
+            signInError.code === 'auth/user-not-found' || 
+            signInError.code === 'auth/wrong-password' ||
+            signInError.code === 'auth/invalid-login-credentials' ||
+            signInError.code === 'auth/invalid-email'
+          ) {
+            try {
+              // Create new Firebase Auth account
+              const userCredential = await createUserWithEmailAndPassword(auth, student.email, password);
+              
+              // Create a user document with the auth UID that AuthContext can find
+              await setDoc(doc(db, "users", userCredential.user.uid), {
+                name: student.name,
+                email: student.email,
+                phoneNumber: student.phoneNumber,
+                studentId: student.studentId,
+                role: 'student',
+                schoolId: student.schoolId,
+                registeredBy: student.registeredBy,
+                status: 'active',
+                originalDocId: student.id, // Reference to original document
+                authUid: userCredential.user.uid,
+                lastLogin: new Date(),
+                createdAt: new Date()
+              });
+              
+              console.log('Student account created successfully');
+            } catch (createError) {
+              console.error('Error creating account:', createError);
+              
+              // If account exists but password is wrong
+              if (createError.code === 'auth/email-already-in-use') {
+                throw new Error("Account exists with different credentials. Please contact your teacher.");
+              }
+              
+              // If email is invalid
+              if (createError.code === 'auth/invalid-email') {
+                throw new Error("Invalid email address. Please contact your teacher to update your email.");
+              }
+              
+              // If password is too weak (shouldn't happen with Student ID)
+              if (createError.code === 'auth/weak-password') {
+                throw new Error("Student ID format is invalid. Please contact your teacher.");
+              }
+              
+              throw createError;
+            }
+          } else {
+            throw signInError;
+          }
+        }
+
+        // Navigation will be handled by AuthContext
+      } else {
+        // Email/password login
+        await signInWithEmailAndPassword(
+          auth,
+          formData.email,
+          formData.password,
+        );
+
+        // Navigation will be handled by AuthContext
+      }
     } catch (err) {
       console.error("Login error:", err);
-      setError(
-        err.message || "Failed to login. Please check your credentials.",
-      );
+      if (loginMethod === 'studentId') {
+        setError(err.message || "Invalid Student ID. Please check and try again.");
+      } else {
+        setError(err.message || "Failed to login. Please check your credentials.");
+      }
     } finally {
       setLoading(false);
     }
@@ -377,10 +492,12 @@ const Login = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
-                    <option value="student">Student</option>
                     <option value="teacher">Teacher</option>
                     <option value="school">School Administrator</option>
                   </select>
+                  <p className="mt-2 text-xs text-gray-500">
+                    <strong>Students:</strong> You will be registered by your teacher. Use Student ID to login.
+                  </p>
                 </div>
 
                 {formData.role === "school" && (
@@ -412,73 +529,133 @@ const Login = () => {
                   />
                 )}
 
-                {(formData.role === "student" ||
-                  formData.role === "teacher") && (
-                  <Input
-                    label="School ID"
-                    type="text"
-                    name="schoolId"
-                    value={formData.schoolId}
-                    onChange={handleChange}
-                    placeholder="Enter your school ID"
-                    helperText="Contact your school administrator for the School ID"
-                  />
-                )}
+
               </>
             )}
 
-            <Input
-              label="Email Address"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="you@example.com"
-              required
-              icon={
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
-                  />
-                </svg>
-              }
-            />
+            {/* Login Method Toggle (only for login, not register) */}
+            {isLogin && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Login Method
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('email')}
+                    className={`py-3 px-4 rounded-lg border-2 transition-all font-medium ${
+                      loginMethod === 'email'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    📧 Email/Password
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoginMethod('studentId')}
+                    className={`py-3 px-4 rounded-lg border-2 transition-all font-medium ${
+                      loginMethod === 'studentId'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    🎓 Student ID
+                  </button>
+                </div>
+              </div>
+            )}
 
-            <Input
-              label="Password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="••••••••"
-              required
-              helperText={!isLogin ? "Minimum 6 characters" : ""}
-              icon={
-                <svg
-                  className="h-5 w-5"
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              }
-            />
+            {/* Student ID Input */}
+            {isLogin && loginMethod === 'studentId' ? (
+              <div>
+                <Input
+                  label="Student ID"
+                  type="text"
+                  value={studentId}
+                  onChange={(e) => setStudentId(e.target.value.toUpperCase())}
+                  placeholder="e.g., STU-A3B7K9"
+                  required
+                  helperText="Enter the Student ID provided by your teacher"
+                  icon={
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+                      />
+                    </svg>
+                  }
+                />
+                <div className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs text-blue-800">
+                    <strong>Don't have a Student ID?</strong> Contact your teacher to register you in the system.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <Input
+                  label="Email Address"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="you@example.com"
+                  required
+                  icon={
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
+                      />
+                    </svg>
+                  }
+                />
+
+                <Input
+                  label="Password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  helperText={!isLogin ? "Minimum 6 characters" : ""}
+                  icon={
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                  }
+                />
+              </>
+            )}
 
             {!isLogin && (
               <Input
@@ -546,7 +723,7 @@ const Login = () => {
                   password: "",
                   confirmPassword: "",
                   name: "",
-                  role: "student",
+                  role: "teacher",
                   schoolId: "",
                   schoolName: "",
                 });

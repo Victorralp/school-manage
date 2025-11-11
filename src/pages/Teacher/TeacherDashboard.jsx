@@ -25,6 +25,7 @@ import LimitWarning from "../../components/Subscription/LimitWarning";
 import SchoolSubscriptionWidget from "../../components/Subscription/SchoolSubscriptionWidget";
 import { exportResultsToPDF, exportResultsToExcel } from "../../utils/exportResults";
 import SubjectRegistrationModal from "../../components/Subject/SubjectRegistrationModal";
+import StudentRegistrationModal from "../../components/Student/StudentRegistrationModal";
 import { 
   registerSubject, 
   subscribeToTeacherSubjects,
@@ -32,6 +33,7 @@ import {
   incrementSubjectExamCount,
   decrementSubjectExamCount
 } from "../../firebase/subjectService";
+import { registerStudent, deactivateStudent } from "../../firebase/studentService";
 
 const TeacherDashboard = () => {
   const { user, userData } = useAuth();
@@ -44,7 +46,8 @@ const TeacherDashboard = () => {
     isNearLimit,
     school,
     isAdmin,
-    teacherUsage
+    teacherUsage,
+    questionLimit
   } = useSchoolSubscription();
   const [exams, setExams] = useState([]);
   const [students, setStudents] = useState([]);
@@ -61,6 +64,8 @@ const TeacherDashboard = () => {
   const [subjects, setSubjects] = useState([]);
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [registeredStudentId, setRegisteredStudentId] = useState(null);
 
   // Form states
   const [examForm, setExamForm] = useState({
@@ -204,6 +209,12 @@ const TeacherDashboard = () => {
       return;
     }
 
+    // Check question limit
+    if (questions.length >= questionLimit) {
+      showAlert("error", `You've reached the maximum of ${questionLimit} questions for your plan. ${school?.planTier === 'free' ? 'Upgrade to add more questions.' : ''}`);
+      return;
+    }
+
     setQuestions([...questions, { ...currentQuestion }]);
     setCurrentQuestion({
       questionText: "",
@@ -336,6 +347,47 @@ const TeacherDashboard = () => {
       } catch (error) {
         console.error("Error deleting subject:", error);
         showAlert("error", "Failed to delete subject");
+      }
+    }
+  };
+
+  const handleRegisterStudent = async (studentData) => {
+    if (!checkLimit('student')) {
+      setLimitModalType('student');
+      setShowLimitModal(true);
+      throw new Error('Student limit reached');
+    }
+
+    try {
+      setLoading(true);
+      const result = await registerStudent(user.uid, userData?.schoolId, studentData);
+      await incrementUsage('student');
+      
+      // Store the student ID to show in a modal
+      setRegisteredStudentId(result.studentId);
+      
+      showAlert('success', `Student "${result.name}" registered successfully!`);
+      fetchTeacherData(); // Refresh student list
+      
+      return result;
+    } catch (error) {
+      console.error('Error registering student:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId, studentName) => {
+    if (window.confirm(`Are you sure you want to remove ${studentName}? They will no longer be able to access the system.`)) {
+      try {
+        await deactivateStudent(studentId);
+        await decrementUsage('student');
+        showAlert("success", "Student removed successfully");
+        fetchTeacherData();
+      } catch (error) {
+        console.error("Error removing student:", error);
+        showAlert("error", "Failed to remove student");
       }
     }
   };
@@ -981,11 +1033,54 @@ const TeacherDashboard = () => {
       )}
 
       {activeTab === "students" && (
-        <Card title="Students" subtitle="Students in your school">
+        <Card 
+          title="Your Registered Students" 
+          subtitle="Students you have registered"
+          action={
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setShowStudentModal(true)}
+              disabled={!checkLimit('student')}
+            >
+              <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Register Student
+            </Button>
+          }
+        >
           <Table
             columns={[
               { header: "Name", accessor: "name" },
-              { header: "Email", accessor: "email" },
+              { 
+                header: "Student ID", 
+                render: (row) => (
+                  <div className="flex items-center gap-2">
+                    <code className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono text-sm font-bold">
+                      {row.studentId || 'N/A'}
+                    </code>
+                    {row.studentId && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(row.studentId);
+                          showAlert("success", "Student ID copied!");
+                        }}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Copy Student ID"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )
+              },
+              { 
+                header: "Contact", 
+                render: (row) => row.email || row.phoneNumber || 'N/A'
+              },
               {
                 header: "Status",
                 render: (row) => (
@@ -1003,7 +1098,16 @@ const TeacherDashboard = () => {
             ]}
             data={students}
             loading={loading}
-            emptyMessage="No students found"
+            emptyMessage="No students registered yet. Click 'Register Student' to get started."
+            actions={(row) => (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => handleDeleteStudent(row.id, row.name)}
+              >
+                Remove
+              </Button>
+            )}
           />
         </Card>
       )}
@@ -1047,16 +1151,20 @@ const TeacherDashboard = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm font-semibold text-blue-900 mb-1">
-                  Subject Registration
+                  {school?.planTier?.toUpperCase() || 'FREE'} Plan Limits
                 </p>
-                <p className="text-xs text-blue-800">
-                  Creating an exam registers a new subject and counts toward your school's plan limit. 
+                <div className="text-xs text-blue-800 space-y-1">
+                  <p>
+                    <span className="font-semibold">Questions per exam:</span> Up to {questionLimit} questions
+                  </p>
                   {subjectUsage && (
-                    <span className="font-semibold"> Current usage: {subjectUsage.current}/{subjectUsage.limit} subjects.</span>
+                    <p>
+                      <span className="font-semibold">Subjects:</span> {subjectUsage.current}/{subjectUsage.limit} used
+                    </p>
                   )}
-                </p>
+                </div>
               </div>
             </div>
           </div>
@@ -1083,16 +1191,16 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-semibold text-green-900">
-                      {questions.length} Question{questions.length !== 1 ? 's' : ''} Added
+                      {questions.length} / {questionLimit} Question{questions.length !== 1 ? 's' : ''} Added
                     </p>
                     <p className="text-xs text-green-700">
-                      Ready to create exam
+                      {questions.length >= questionLimit ? 'Limit reached' : 'Ready to create exam'}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-green-600">
-                    {questions.length}
+                    {questions.length} / {questionLimit}
                   </p>
                   <p className="text-xs text-green-700">Questions</p>
                 </div>
@@ -1400,10 +1508,19 @@ const TeacherDashboard = () => {
                 </div>
               </div>
 
-              <div className="mt-6 flex justify-end">
+              <div className="mt-6 flex justify-between items-center">
+                <p className="text-sm text-gray-600">
+                  {questions.length} / {questionLimit} questions added
+                  {questions.length >= questionLimit && (
+                    <span className="ml-2 text-orange-600 font-semibold">
+                      (Limit reached)
+                    </span>
+                  )}
+                </p>
                 <Button
                   variant="primary"
                   onClick={addQuestion}
+                  disabled={questions.length >= questionLimit}
                 >
                   <svg
                     className="h-4 w-4 mr-2"
@@ -1744,6 +1861,59 @@ const TeacherDashboard = () => {
         currentUsage={subjectUsage?.current || 0}
         limit={subjectUsage?.limit || 0}
       />
+
+      {/* Student Registration Modal */}
+      <StudentRegistrationModal
+        isOpen={showStudentModal}
+        onClose={() => setShowStudentModal(false)}
+        onRegister={handleRegisterStudent}
+        loading={loading}
+        canRegister={checkLimit('student')}
+        currentUsage={studentUsage?.current || 0}
+        limit={studentUsage?.limit || 0}
+      />
+
+      {/* Student ID Display Modal */}
+      {registeredStudentId && (
+        <Modal
+          isOpen={!!registeredStudentId}
+          onClose={() => setRegisteredStudentId(null)}
+          title="Student Registered Successfully!"
+          size="md"
+        >
+          <div className="text-center space-y-4">
+            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+              <svg className="h-16 w-16 text-green-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-gray-600 mb-2">Student ID</p>
+              <code className="text-3xl font-bold text-blue-600 font-mono">
+                {registeredStudentId}
+              </code>
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Important:</strong> Please share this Student ID with the student. 
+                They will use it to login to the system.
+              </p>
+            </div>
+
+            <Button
+              variant="primary"
+              onClick={() => {
+                navigator.clipboard.writeText(registeredStudentId);
+                showAlert("success", "Student ID copied to clipboard!");
+              }}
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy Student ID
+            </Button>
+          </div>
+        </Modal>
+      )}
     </Layout>
   );
 };

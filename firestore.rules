@@ -47,6 +47,134 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
+    // Schools collection rules
+    match /schools/{schoolId} {
+      // School admins and teachers can read their school
+      allow read: if isAuthenticated() && 
+                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId == schoolId ||
+                      request.auth.uid == schoolId);
+      
+      // Only backend can write
+      allow write: if false;
+    }
+    
+    // Teachers collection (teacher-school relationships)
+    match /teachers/{teacherId} {
+      // Teachers can read their own data
+      allow read: if isAuthenticated() && request.auth.uid == teacherId;
+      
+      // Only backend can write
+      allow write: if false;
+    }
+    
+    // Subjects collection rules
+    match /subjects/{subjectId} {
+      // Teachers can read their own subjects
+      allow read: if isAuthenticated() && 
+                     resource.data.teacherId == request.auth.uid;
+      
+      // Teachers can create subjects for themselves
+      allow create: if isAuthenticated() && 
+                       request.resource.data.teacherId == request.auth.uid &&
+                       request.resource.data.schoolId is string &&
+                       request.resource.data.name is string &&
+                       request.resource.data.code is string &&
+                       request.resource.data.status == 'active';
+      
+      // Teachers can update their own subjects
+      allow update: if isAuthenticated() && 
+                       resource.data.teacherId == request.auth.uid;
+      
+      // Teachers can delete their own subjects
+      allow delete: if isAuthenticated() && 
+                       resource.data.teacherId == request.auth.uid;
+    }
+    
+    // Users collection rules (includes students, teachers, schools)
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if isAuthenticated() && 
+                     (request.auth.uid == userId || 
+                      resource.data.authUid == request.auth.uid);
+      
+      // Teachers can read students in their school
+      allow read: if isAuthenticated() && 
+                     resource.data.role == 'student' &&
+                     resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+      
+      // Teachers can create students
+      allow create: if isAuthenticated() &&
+                       request.resource.data.role == 'student' &&
+                       request.resource.data.registeredBy == request.auth.uid &&
+                       request.resource.data.schoolId is string &&
+                       request.resource.data.studentId is string;
+      
+      // Teachers can update students they registered
+      allow update: if isAuthenticated() &&
+                       resource.data.role == 'student' &&
+                       resource.data.registeredBy == request.auth.uid;
+      
+      // Students can update their own authUid on first login
+      allow update: if isAuthenticated() &&
+                       resource.data.role == 'student' &&
+                       request.resource.data.authUid == request.auth.uid &&
+                       !resource.data.keys().hasAny(['authUid']);
+      
+      // Users can update their own profile
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Allow user creation during registration
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Exams collection rules
+    match /exams/{examId} {
+      // Teachers can read their own exams
+      allow read: if isAuthenticated() && 
+                     resource.data.teacherId == request.auth.uid;
+      
+      // Students can read exams from their school
+      allow read: if isAuthenticated() && 
+                     resource.data.schoolId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.schoolId;
+      
+      // Teachers can create exams
+      allow create: if isAuthenticated() && 
+                       request.resource.data.teacherId == request.auth.uid;
+      
+      // Teachers can update their own exams
+      allow update: if isAuthenticated() && 
+                       resource.data.teacherId == request.auth.uid;
+      
+      // Teachers can delete their own exams
+      allow delete: if isAuthenticated() && 
+                       resource.data.teacherId == request.auth.uid;
+      
+      // Questions subcollection
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAuthenticated() && 
+                        get(/databases/$(database)/documents/exams/$(examId)).data.teacherId == request.auth.uid;
+      }
+    }
+    
+    // Results collection rules
+    match /results/{resultId} {
+      // Students can read their own results
+      allow read: if isAuthenticated() && 
+                     resource.data.studentId == request.auth.uid;
+      
+      // Teachers can read results for their exams
+      allow read: if isAuthenticated() && 
+                     get(/databases/$(database)/documents/exams/$(resource.data.examId)).data.teacherId == request.auth.uid;
+      
+      // Students can create their own results
+      allow create: if isAuthenticated() && 
+                       request.resource.data.studentId == request.auth.uid;
+      
+      // No updates or deletes allowed
+      allow update, delete: if false;
+    }
+    
     // Default deny all other collections
     match /{document=**} {
       allow read, write: if false;
