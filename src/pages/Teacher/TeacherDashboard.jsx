@@ -618,7 +618,9 @@ const TeacherDashboard = () => {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Your Exams</h3>
-          <p className="text-sm text-gray-600">Create and manage your exams</p>
+          <p className="text-sm text-gray-600">
+            Create and manage your exams. Each exam counts as one subject toward your school's plan limit.
+          </p>
         </div>
         <Button
           variant="primary"
@@ -641,7 +643,7 @@ const TeacherDashboard = () => {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Create New Exam
+          Register New Subject
         </Button>
       </div>
 
@@ -708,32 +710,105 @@ const TeacherDashboard = () => {
       )}
 
       {activeTab === "exams" && (
-        <Card title="All Exams" subtitle="Manage your exams">
-          <Table
-            columns={examColumns}
-            data={exams}
-            loading={loading}
-            emptyMessage="No exams created yet"
-            actions={(row) => (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleViewExam(row)}
-                >
-                  View
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleDeleteExam(row.id)}
-                >
-                  Delete
-                </Button>
-              </>
-            )}
-          />
-        </Card>
+        <div className="space-y-6">
+          {/* Subscription Limit Info */}
+          {school && subjectUsage && (
+            <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Subject Registration</h3>
+                  <p className="text-sm text-gray-600">
+                    {school.name} - {school.planTier.toUpperCase()} Plan
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-3xl font-bold text-blue-600">
+                    {subjectUsage.current} / {subjectUsage.limit}
+                  </p>
+                  <p className="text-xs text-gray-600">Subjects Used</p>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">School-Wide Usage</span>
+                  <span className="text-sm font-semibold text-gray-900">
+                    {subjectUsage.percentage.toFixed(0)}%
+                  </span>
+                </div>
+                <div className={`w-full rounded-full h-3 ${
+                  subjectUsage.percentage >= 100 ? 'bg-red-100' : 
+                  subjectUsage.percentage >= 80 ? 'bg-yellow-100' : 
+                  'bg-green-100'
+                }`}>
+                  <div
+                    className={`h-3 rounded-full transition-all duration-300 ${
+                      subjectUsage.percentage >= 100 ? 'bg-red-500' : 
+                      subjectUsage.percentage >= 80 ? 'bg-yellow-500' : 
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.min(subjectUsage.percentage, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Your Contribution */}
+              {teacherUsage && (
+                <div className="bg-white bg-opacity-60 rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">Your Subjects:</span>
+                    <span className="text-lg font-bold text-blue-600">{teacherUsage.subjects}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Warning or Upgrade Message */}
+              {subjectUsage.percentage >= 100 ? (
+                <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-3 rounded">
+                  <p className="text-sm text-red-800">
+                    <strong>Limit Reached!</strong> Your school has reached the maximum number of subjects. 
+                    {isAdmin ? ' Upgrade your plan to add more subjects.' : ' Contact your school admin to upgrade.'}
+                  </p>
+                </div>
+              ) : subjectUsage.percentage >= 80 ? (
+                <div className="mt-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Approaching Limit!</strong> Your school is using {subjectUsage.percentage.toFixed(0)}% of available subjects.
+                  </p>
+                </div>
+              ) : null}
+            </Card>
+          )}
+
+          {/* Exams Table */}
+          <Card title="Your Registered Subjects" subtitle="Exams you have created">
+            <Table
+              columns={examColumns}
+              data={exams}
+              loading={loading}
+              emptyMessage="No subjects registered yet. Click 'Create New Exam' to get started."
+              actions={(row) => (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewExam(row)}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleDeleteExam(row.id)}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
+            />
+          </Card>
+        </div>
       )}
 
       {activeTab === "results" && (
@@ -782,7 +857,7 @@ const TeacherDashboard = () => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Create New Exam"
+        title="Register New Subject & Create Exam"
         size="xl"
         footer={
           <>
@@ -806,6 +881,28 @@ const TeacherDashboard = () => {
         }
       >
         <div className="space-y-6">
+          {/* Info Box */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
+            <div className="flex items-start">
+              <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
+                <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-semibold text-blue-900 mb-1">
+                  Subject Registration
+                </p>
+                <p className="text-xs text-blue-800">
+                  Creating an exam registers a new subject and counts toward your school's plan limit. 
+                  {subjectUsage && (
+                    <span className="font-semibold"> Current usage: {subjectUsage.current}/{subjectUsage.limit} subjects.</span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Progress Summary */}
           {questions.length > 0 && (
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">

@@ -1,11 +1,14 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useSchoolSubscription } from "../../context/SchoolSubscriptionContext";
+import { useAuth } from "../../context/AuthContext";
 import Card from "../Card";
 import Button from "../Button";
+import SchoolSetupWizard from "../School/SchoolSetupWizard";
 
 const SchoolSubscriptionWidget = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
     school,
     currentPlan,
@@ -26,7 +29,43 @@ const SchoolSubscriptionWidget = () => {
   }
 
   if (!school || !currentPlan) {
-    return null;
+    // Show message that school subscription is being set up
+    return (
+      <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <div className="bg-blue-100 p-3 rounded-full">
+              <svg
+                className="h-8 w-8 text-blue-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+            </div>
+          </div>
+          <div className="ml-4 flex-1">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              School Subscription
+            </h3>
+            <p className="text-sm text-gray-700 mb-3">
+              Your school's subscription system is being set up. Please contact your school administrator for more information.
+            </p>
+            <div className="bg-white bg-opacity-60 rounded-lg p-3 border border-blue-200">
+              <p className="text-xs text-gray-600">
+                <strong>Note:</strong> Your school admin needs to initialize the subscription system. Once set up, you'll see your school's plan and usage limits here.
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+    );
   }
 
   const getProgressColor = (percentage) => {
@@ -165,7 +204,17 @@ const SchoolSubscriptionWidget = () => {
           variant="outline"
           size="sm"
           fullWidth
-          onClick={() => navigate('/teacher/subscription')}
+          onClick={() => {
+            // Navigate based on user role
+            const path = window.location.pathname;
+            if (path.startsWith('/school')) {
+              // School role user
+              navigate('/school/subscription');
+            } else {
+              // Teacher role user
+              navigate('/teacher/subscription');
+            }
+          }}
         >
           View Details
         </Button>
@@ -174,7 +223,17 @@ const SchoolSubscriptionWidget = () => {
             variant="primary"
             size="sm"
             fullWidth
-            onClick={() => navigate('/teacher/subscription')}
+            onClick={() => {
+              // Navigate based on user role
+              const path = window.location.pathname;
+              if (path.startsWith('/school')) {
+                // School role user
+                navigate('/school/subscription');
+              } else {
+                // Teacher role user
+                navigate('/teacher/subscription');
+              }
+            }}
           >
             Upgrade Plan
           </Button>

@@ -89,15 +89,51 @@ export const SchoolSubscriptionProvider = ({ children }) => {
       try {
         setLoading(true);
         
-        // Get teacher-school relationship
-        const relationship = await getTeacherSchoolRelationship(user.uid);
-        setTeacherRelationship(relationship);
+        // Check if user has "school" role (they ARE the school)
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        const userData = userDoc.data();
         
-        if (relationship) {
-          // Check if user is admin
-          const adminStatus = await checkIsSchoolAdmin(user.uid);
-          setIsAdmin(adminStatus);
+        if (userData?.role === 'school') {
+          // User is a school admin - load school data directly
+          // For school role, the user.uid IS the schoolId
+          setTeacherRelationship({
+            teacherId: user.uid,
+            schoolId: user.uid,
+            role: 'admin',
+            currentSubjects: 0,
+            currentStudents: 0
+          });
+          setIsAdmin(true);
+        } else if (userData?.role === 'teacher') {
+          // User is a teacher - get teacher-school relationship
+          let relationship = await getTeacherSchoolRelationship(user.uid);
+          
+          // MIGRATION CASE: If no relationship exists but user has schoolId, create a temporary relationship
+          if (!relationship && userData.schoolId) {
+            console.log('Migration case: Teacher has schoolId but no relationship document');
+            relationship = {
+              teacherId: user.uid,
+              schoolId: userData.schoolId,
+              role: 'teacher',
+              currentSubjects: 0,
+              currentStudents: 0,
+              status: 'active',
+              joinedAt: new Date()
+            };
+          }
+          
+          setTeacherRelationship(relationship);
+          
+          if (relationship) {
+            // Check if user is admin
+            const adminStatus = await checkIsSchoolAdmin(user.uid);
+            setIsAdmin(adminStatus);
+          } else {
+            setIsAdmin(false);
+          }
         } else {
+          // Not a school or teacher role
+          setTeacherRelationship(null);
           setIsAdmin(false);
         }
         
@@ -116,10 +152,13 @@ export const SchoolSubscriptionProvider = ({ children }) => {
   // Real-time school subscription listener
   useEffect(() => {
     if (!teacherRelationship?.schoolId) {
+      console.log('No teacherRelationship.schoolId, skipping school subscription');
       setSchool(null);
       setCurrentPlan(null);
       return;
     }
+
+    console.log('Subscribing to school:', teacherRelationship.schoolId);
 
     const unsubscribe = subscribeToSchool(
       teacherRelationship.schoolId,
@@ -131,6 +170,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
         }
         
         if (schoolData) {
+          console.log('School data loaded:', schoolData);
           setSchool(schoolData);
           
           // Set current plan details
@@ -140,6 +180,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
           
           setError(null);
         } else {
+          console.log('No school data found for ID:', teacherRelationship.schoolId);
           setSchool(null);
           setCurrentPlan(null);
         }

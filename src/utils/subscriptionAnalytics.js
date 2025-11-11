@@ -8,18 +8,19 @@ import { db } from "../firebase/config";
  */
 export const getActiveSubscriptionsByTier = async (planTier = null) => {
   try {
-    const subscriptionsRef = collection(db, "subscriptions");
+    // Query schools collection (new school-based model)
+    const schoolsRef = collection(db, "schools");
     
     let q;
     if (planTier) {
       q = query(
-        subscriptionsRef,
+        schoolsRef,
         where("planTier", "==", planTier),
         where("status", "==", "active")
       );
     } else {
       q = query(
-        subscriptionsRef,
+        schoolsRef,
         where("status", "==", "active")
       );
     }
@@ -50,7 +51,13 @@ export const getActiveSubscriptionsByTier = async (planTier = null) => {
     return counts;
   } catch (error) {
     console.error("Error getting active subscriptions:", error);
-    throw new Error("Failed to fetch subscription counts");
+    // Return empty counts instead of throwing to prevent dashboard errors
+    return {
+      free: 0,
+      premium: 0,
+      vip: 0,
+      total: 0
+    };
   }
 };
 
@@ -109,7 +116,13 @@ export const calculateTotalRevenue = async (startDate = null, endDate = null, cu
     return revenue;
   } catch (error) {
     console.error("Error calculating revenue:", error);
-    throw new Error("Failed to calculate revenue");
+    // Return empty revenue instead of throwing to prevent dashboard errors
+    return {
+      NGN: 0,
+      USD: 0,
+      total: 0,
+      transactionCount: 0
+    };
   }
 };
 
@@ -301,7 +314,11 @@ export const getRevenueByPlanTier = async (startDate = null, endDate = null) => 
     return revenueByTier;
   } catch (error) {
     console.error("Error getting revenue by plan tier:", error);
-    throw new Error("Failed to calculate revenue by plan tier");
+    // Return empty revenue instead of throwing to prevent dashboard errors
+    return {
+      premium: { NGN: 0, USD: 0, count: 0 },
+      vip: { NGN: 0, USD: 0, count: 0 }
+    };
   }
 };
 

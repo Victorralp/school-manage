@@ -1,17 +1,20 @@
-import { useSubscription } from '../../context/SubscriptionContext';
+import { useSchoolSubscription } from '../../context/SchoolSubscriptionContext';
 import Card from '../Card';
 import Button from '../Button';
 import SkeletonLoader from './SkeletonLoader';
 
 const SubscriptionDashboard = ({ onUpgradeClick }) => {
   const {
-    subscription,
+    school,
     loading,
     error,
     currentPlan,
     subjectUsage,
     studentUsage,
-  } = useSubscription();
+  } = useSchoolSubscription();
+  
+  // Use school as subscription for compatibility
+  const subscription = school;
 
   if (loading) {
     return <SkeletonLoader type="dashboard" />;

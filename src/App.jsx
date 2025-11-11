@@ -9,7 +9,7 @@ import { useAuth } from "./context/AuthContext";
 import { SchoolSubscriptionProvider } from "./context/SchoolSubscriptionContext";
 import { useEffect } from "react";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
-import SchoolDashboard from "./pages/School/SchoolDashboard";
+import SchoolRoutes from "./pages/School/SchoolRoutes";
 import TeacherRoutes from "./pages/Teacher/TeacherRoutes";
 import StudentDashboard from "./pages/Student/StudentDashboard";
 import TakeExam from "./pages/Student/Exam/TakeExam";
@@ -81,7 +81,7 @@ function AppContent() {
         path="/school/*"
         element={
           <ProtectedRoute requiredRole="school">
-            <SchoolDashboard />
+            <SchoolRoutes />
           </ProtectedRoute>
         }
       />

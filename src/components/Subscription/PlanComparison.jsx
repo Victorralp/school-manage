@@ -1,9 +1,12 @@
-import { useSubscription } from '../../context/SubscriptionContext';
+import { useSchoolSubscription } from '../../context/SchoolSubscriptionContext';
 import Button from '../Button';
 import SkeletonLoader from './SkeletonLoader';
 
 const PlanComparison = ({ onSelectPlan }) => {
-  const { availablePlans, subscription, loading, error } = useSubscription();
+  const { availablePlans, school, loading, error } = useSchoolSubscription();
+  
+  // Use school as subscription for compatibility
+  const subscription = school;
 
   if (loading || !availablePlans) {
     return <SkeletonLoader type="planComparison" />;
