@@ -4,6 +4,7 @@ const Card = ({
   children,
   title,
   subtitle,
+  action,
   footer,
   className = '',
   padding = true,
@@ -19,16 +20,25 @@ const Card = ({
       className={`${baseClasses} ${hoverClasses} ${className}`}
       onClick={onClick}
     >
-      {(title || subtitle) && (
+      {(title || subtitle || action) && (
         <div className={`${paddingClasses} ${!padding && children ? 'px-6 pt-6' : ''} border-b border-gray-200`}>
-          {title && (
-            <h3 className="text-xl font-semibold text-gray-800 mb-1">
-              {title}
-            </h3>
-          )}
-          {subtitle && (
-            <p className="text-sm text-gray-600">{subtitle}</p>
-          )}
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              {title && (
+                <h3 className="text-xl font-semibold text-gray-800 mb-1">
+                  {title}
+                </h3>
+              )}
+              {subtitle && (
+                <p className="text-sm text-gray-600">{subtitle}</p>
+              )}
+            </div>
+            {action && (
+              <div className="ml-4 flex-shrink-0">
+                {action}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
