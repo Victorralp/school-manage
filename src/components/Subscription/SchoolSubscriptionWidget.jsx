@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSchoolSubscription } from "../../context/SchoolSubscriptionContext";
 import { useAuth } from "../../context/AuthContext";
+import { initializeSchoolSubscription } from "../../utils/subscriptionInit";
 import Card from "../Card";
 import Button from "../Button";
-import SchoolSetupWizard from "../School/SchoolSetupWizard";
+import Alert from "../Alert";
 
 const SchoolSubscriptionWidget = () => {
   const navigate = useNavigate();
@@ -19,6 +20,30 @@ const SchoolSubscriptionWidget = () => {
     isNearLimit,
     isAdmin,
   } = useSchoolSubscription();
+  
+  const [initializing, setInitializing] = useState(false);
+  const [alert, setAlert] = useState(null);
+
+  const handleInitializeSubscription = async () => {
+    setInitializing(true);
+    try {
+      const result = await initializeSchoolSubscription(user.uid);
+      if (result.success) {
+        setAlert({ type: 'success', message: 'Subscription initialized successfully! Refreshing...' });
+        // Reload the page to fetch the new subscription data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        setAlert({ type: 'error', message: result.message });
+      }
+    } catch (error) {
+      console.error('Error initializing subscription:', error);
+      setAlert({ type: 'error', message: 'Failed to initialize subscription' });
+    } finally {
+      setInitializing(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -32,6 +57,14 @@ const SchoolSubscriptionWidget = () => {
     // Show message that school subscription is being set up
     return (
       <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+        {alert && (
+          <Alert
+            type={alert.type}
+            message={alert.message}
+            onClose={() => setAlert(null)}
+            className="mb-4"
+          />
+        )}
         <div className="flex items-start">
           <div className="flex-shrink-0">
             <div className="bg-blue-100 p-3 rounded-full">
@@ -52,16 +85,43 @@ const SchoolSubscriptionWidget = () => {
           </div>
           <div className="ml-4 flex-1">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              School Subscription
+              School Subscription Not Initialized
             </h3>
             <p className="text-sm text-gray-700 mb-3">
-              Your school's subscription system is being set up. Please contact your school administrator for more information.
+              Your school's subscription system needs to be set up to manage subjects and students.
             </p>
-            <div className="bg-white bg-opacity-60 rounded-lg p-3 border border-blue-200">
-              <p className="text-xs text-gray-600">
-                <strong>Note:</strong> Your school admin needs to initialize the subscription system. Once set up, you'll see your school's plan and usage limits here.
+            <div className="bg-white bg-opacity-60 rounded-lg p-3 border border-blue-200 mb-4">
+              <p className="text-xs text-gray-600 mb-2">
+                <strong>Free Plan Includes:</strong>
               </p>
+              <ul className="text-xs text-gray-600 ml-4 list-disc space-y-1">
+                <li>10 subjects (school-wide)</li>
+                <li>50 students (school-wide)</li>
+                <li>Unlimited exams</li>
+                <li>Upgrade anytime</li>
+              </ul>
             </div>
+            <Button
+              variant="primary"
+              fullWidth
+              loading={initializing}
+              onClick={handleInitializeSubscription}
+            >
+              <svg
+                className="h-5 w-5 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
+              </svg>
+              Initialize Free Plan
+            </Button>
           </div>
         </div>
       </Card>

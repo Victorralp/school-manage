@@ -5,7 +5,7 @@ import {
 } from "firebase/auth";
 import { doc, setDoc, updateDoc, getDoc } from "firebase/firestore";
 import { auth, db } from "../firebase/config";
-import { initializeTeacherSubscription } from "../utils/subscriptionInit";
+import { initializeTeacherSubscription, initializeSchoolSubscription } from "../utils/subscriptionInit";
 import { verifyStudentId } from "../firebase/studentService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -205,6 +205,11 @@ const Login = () => {
       return;
     }
 
+    if (formData.role === "teacher" && !formData.schoolId.trim()) {
+      setError("School ID is required for teacher registration");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -244,6 +249,13 @@ const Login = () => {
           status: "pending",
           createdAt: new Date(),
         });
+
+        // Initialize Free plan subscription for school
+        const schoolSubscriptionResult = await initializeSchoolSubscription(userCredential.user.uid);
+        if (!schoolSubscriptionResult.success) {
+          console.error("Failed to initialize school subscription:", schoolSubscriptionResult.message);
+          // Don't block registration if subscription init fails
+        }
       }
 
       // If teacher registration, initialize Free plan subscription
@@ -510,6 +522,35 @@ const Login = () => {
                     placeholder="Enter your school name"
                     required
                     helperText="Official name of your school or institution"
+                    icon={
+                      <svg
+                        className="h-5 w-5"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                        />
+                      </svg>
+                    }
+                  />
+                )}
+
+                {formData.role === "teacher" && (
+                  <Input
+                    label="School ID"
+                    type="text"
+                    name="schoolId"
+                    value={formData.schoolId}
+                    onChange={handleChange}
+                    placeholder="Enter your school ID"
+                    required
+                    helperText="Contact your school administrator for the School ID"
                     icon={
                       <svg
                         className="h-5 w-5"

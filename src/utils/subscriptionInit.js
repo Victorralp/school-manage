@@ -67,11 +67,84 @@ export const initializeTeacherSubscription = async (teacherId) => {
 };
 
 /**
+ * Initialize a Free plan subscription for a new school
+ * @param {string} schoolId - The school's ID
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export const initializeSchoolSubscription = async (schoolId) => {
+  try {
+    const schoolRef = doc(db, "schools", schoolId);
+    
+    // Check if school document exists
+    const schoolDoc = await getDoc(schoolRef);
+    if (!schoolDoc.exists()) {
+      return {
+        success: false,
+        message: "School document not found"
+      };
+    }
+
+    // Check if subscription already exists
+    const schoolData = schoolDoc.data();
+    if (schoolData.planTier) {
+      return {
+        success: true,
+        message: "Subscription already exists"
+      };
+    }
+
+    // Update school document with Free plan subscription
+    const subscriptionData = {
+      planTier: "free",
+      status: "active",
+      
+      // Free plan limits (school-wide)
+      subjectLimit: 10,
+      studentLimit: 50,
+      
+      // Initial usage counts
+      currentSubjects: 0,
+      currentStudents: 0,
+      
+      // Payment info (free plan)
+      amount: 0,
+      currency: "NGN",
+      
+      // Timestamps
+      startDate: new Date(),
+      expiryDate: null, // Free plan doesn't expire
+      lastPaymentDate: null,
+      
+      // Payment tracking (null for free plan)
+      paystackCustomerCode: null,
+      paystackSubscriptionCode: null,
+      
+      // Metadata
+      subscriptionCreatedAt: new Date(),
+      subscriptionUpdatedAt: new Date()
+    };
+
+    await setDoc(schoolRef, subscriptionData, { merge: true });
+
+    return {
+      success: true,
+      message: "Free plan subscription created successfully for school"
+    };
+  } catch (error) {
+    console.error("Error initializing school subscription:", error);
+    return {
+      success: false,
+      message: error.message || "Failed to initialize school subscription"
+    };
+  }
+};
+
+/**
  * Check if a user needs subscription initialization
  * @param {string} userId - The user ID
  * @param {string} role - The user role
  * @returns {boolean}
  */
 export const needsSubscriptionInit = (role) => {
-  return role === "teacher";
+  return role === "teacher" || role === "school";
 };
