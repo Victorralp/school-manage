@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
+import PricingSection from "../components/PricingSection";
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -263,6 +264,9 @@ const Welcome = () => {
             </div>
           </div>
         </div>
+
+        {/* Pricing Section */}
+        <PricingSection />
 
         {/* Status Banner */}
         <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200">
