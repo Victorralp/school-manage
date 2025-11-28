@@ -28,7 +28,7 @@ const PricingSection = () => {
             Choose Your Plan
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Select the plan that best fits your school's needs. All plans include per-teacher limits.
+            School admin pays once. All teachers share the total limit.
           </p>
         </div>
 
@@ -42,11 +42,10 @@ const PricingSection = () => {
             return (
               <div
                 key={planKey}
-                className={`relative rounded-2xl border-2 ${
-                  isPremium
+                className={`relative rounded-2xl border-2 ${isPremium
                     ? 'border-blue-600 shadow-2xl scale-105 bg-white'
                     : 'border-gray-200 bg-white hover:shadow-xl'
-                } overflow-hidden transition-all duration-300`}
+                  } overflow-hidden transition-all duration-300`}
               >
                 {/* Popular Badge for Premium */}
                 {isPremium && (
@@ -81,6 +80,9 @@ const PricingSection = () => {
                     <p className="text-sm text-gray-500 mt-1">
                       ${plan.price.USD} USD
                     </p>
+                    <p className="text-xs text-blue-600 font-semibold mt-2">
+                      {planKey !== 'free' ? 'Admin pays once for entire school' : 'Free forever'}
+                    </p>
                   </div>
 
                   {/* Key Limits */}
@@ -103,7 +105,7 @@ const PricingSection = () => {
                         <span className="font-bold text-gray-900">
                           {formatLimit(plan.subjectLimit)}
                         </span>{' '}
-                        subjects per teacher
+                        subjects total
                       </span>
                     </div>
                     <div className="flex items-center">
@@ -124,7 +126,7 @@ const PricingSection = () => {
                         <span className="font-bold text-gray-900">
                           {formatLimit(plan.studentLimit)}
                         </span>{' '}
-                        students per teacher
+                        students total
                       </span>
                     </div>
                     <div className="flex items-center">

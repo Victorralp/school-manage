@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useMemo } 
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "./AuthContext";
-import { 
+import {
   getSchoolByTeacherId,
   getTeacherSchoolRelationship,
   subscribeToSchool,
@@ -33,7 +33,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
       try {
         const planConfigRef = doc(db, "config", "plans");
         const planConfigDoc = await getDoc(planConfigRef);
-        
+
         if (planConfigDoc.exists()) {
           const plans = planConfigDoc.data();
           setAvailablePlans(plans);
@@ -88,11 +88,11 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     const loadTeacherData = async () => {
       try {
         setLoading(true);
-        
+
         // Check if user has "school" role (they ARE the school)
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.data();
-        
+
         if (userData?.role === 'school') {
           // User is a school admin - load school data directly
           // For school role, the user.uid IS the schoolId
@@ -107,7 +107,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
         } else if (userData?.role === 'teacher') {
           // User is a teacher - get teacher-school relationship
           let relationship = await getTeacherSchoolRelationship(user.uid);
-          
+
           // MIGRATION CASE: If no relationship exists but user has schoolId, create a temporary relationship
           if (!relationship && userData.schoolId) {
             console.log('Migration case: Teacher has schoolId but no relationship document');
@@ -121,9 +121,9 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               joinedAt: new Date()
             };
           }
-          
+
           setTeacherRelationship(relationship);
-          
+
           if (relationship) {
             // Check if user is admin
             const adminStatus = await checkIsSchoolAdmin(user.uid);
@@ -136,7 +136,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
           setTeacherRelationship(null);
           setIsAdmin(false);
         }
-        
+
         setError(null);
       } catch (err) {
         console.error("Error loading teacher data:", err);
@@ -168,16 +168,16 @@ export const SchoolSubscriptionProvider = ({ children }) => {
           setError("Failed to load school subscription data");
           return;
         }
-        
+
         if (schoolData) {
           console.log('School data loaded:', schoolData);
           setSchool(schoolData);
-          
+
           // Set current plan details
           if (availablePlans && schoolData.planTier) {
             setCurrentPlan(availablePlans[schoolData.planTier]);
           }
-          
+
           setError(null);
         } else {
           console.log('No school data found for ID:', teacherRelationship.schoolId);
@@ -234,26 +234,26 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     return limitValue;
   }, []);
 
-  // Calculate usage metrics (PER TEACHER - not school-wide)
+  // Calculate usage metrics (SCHOOL-WIDE - all teachers share the pool)
   const subjectUsage = useMemo(() => {
-    if (!teacherRelationship || !currentPlan) {
+    if (!school || !currentPlan) {
       return { current: 0, limit: 0, percentage: 0 };
     }
     const limit = getActualLimit(currentPlan.subjectLimit);
-    const current = teacherRelationship.currentSubjects || 0;
+    const current = school.currentSubjects || 0;
     const percentage = limit > 0 ? Math.round((current / limit) * 100) : 0;
     return { current, limit, percentage };
-  }, [teacherRelationship, currentPlan, getActualLimit]);
+  }, [school, currentPlan, getActualLimit]);
 
   const studentUsage = useMemo(() => {
-    if (!teacherRelationship || !currentPlan) {
+    if (!school || !currentPlan) {
       return { current: 0, limit: 0, percentage: 0 };
     }
     const limit = getActualLimit(currentPlan.studentLimit);
-    const current = teacherRelationship.currentStudents || 0;
+    const current = school.currentStudents || 0;
     const percentage = limit > 0 ? Math.round((current / limit) * 100) : 0;
     return { current, limit, percentage };
-  }, [teacherRelationship, currentPlan, getActualLimit]);
+  }, [school, currentPlan, getActualLimit]);
 
   // Teacher's individual usage
   const teacherUsage = useMemo(() => {
@@ -302,26 +302,26 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     }
   }, [user]);
 
-  // Check if adding new item would exceed teacher's individual limit
+  // Check if adding new item would exceed school-wide limit
   const checkLimit = useCallback((type) => {
-    if (!teacherRelationship || !currentPlan) {
+    if (!school || !currentPlan) {
       return false;
     }
 
     const usage = type === 'subject' ? subjectUsage : studentUsage;
-    
+
     // Block new registrations if school is in grace period
-    if (school?.status === 'grace_period') {
+    if (school.status === 'grace_period') {
       return false;
     }
-    
-    // Block new registrations if teacher's current usage already exceeds their limit
+
+    // Block new registrations if school's current usage already exceeds the limit
     if (usage.current >= usage.limit) {
       return false;
     }
-    
+
     return usage.current < usage.limit;
-  }, [teacherRelationship, currentPlan, school, subjectUsage, studentUsage]);
+  }, [school, currentPlan, subjectUsage, studentUsage]);
 
   // Helper methods
   const canAddSubject = useCallback(() => {
@@ -343,17 +343,17 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     return school?.status === 'grace_period';
   }, [school]);
 
-  // Check if teacher's current usage exceeds their limits (after downgrade)
+  // Check if school's current usage exceeds limits (after downgrade)
   const exceedsLimits = useCallback(() => {
-    if (!teacherRelationship || !currentPlan) {
+    if (!school || !currentPlan) {
       return { subjects: false, students: false };
     }
-    
+
     return {
       subjects: subjectUsage.current > subjectUsage.limit,
       students: studentUsage.current > studentUsage.limit,
     };
-  }, [teacherRelationship, currentPlan, subjectUsage, studentUsage]);
+  }, [school, currentPlan, subjectUsage, studentUsage]);
 
   // Validate plan upgrade/downgrade (admin only)
   const validatePlanChange = useCallback((newPlanTier) => {
@@ -428,7 +428,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     try {
       // Process payment with school ID instead of teacher ID
       const result = await processPayment(school.id, paymentData, true); // true flag for school payment
-      
+
       if (!result.success) {
         throw new Error(result.error || "Payment processing failed");
       }
@@ -460,7 +460,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
 
     try {
       const schoolRef = doc(db, "schools", school.id);
-      
+
       // Update subscription to mark for cancellation
       await updateDoc(schoolRef, {
         status: 'grace_period',

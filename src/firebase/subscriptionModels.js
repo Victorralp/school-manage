@@ -2,7 +2,7 @@
  * Subscription Data Models and Constants
  * Defines the structure for subscription plans and related data
  * SCHOOL-BASED MODEL: Schools pay for subscriptions, teachers belong to schools
- * LIMITS ARE PER TEACHER: Each teacher can register up to the limit (e.g., 3 subjects per teacher)
+ * LIMITS ARE SCHOOL-WIDE: All teachers share the total limit (e.g., 3 subjects total for entire school)
  */
 
 // Plan tier constants
@@ -33,18 +33,19 @@ export const SCHOOL_ROLES = {
 };
 
 // Plan configuration with limits and pricing
-// NOTE: Limits are PER TEACHER, not school-wide
+// NOTE: Limits are SCHOOL-WIDE, shared by all teachers
 export const PLAN_CONFIG = {
   free: {
     name: "Free Plan",
     price: { NGN: 0, USD: 0 },
-    subjectLimit: 3, // Per teacher
-    studentLimit: 10, // Per teacher
+    subjectLimit: 3, // Total for entire school
+    studentLimit: 10, // Total for entire school
     questionLimit: 10, // Per exam
     features: [
-      "3 subjects per teacher",
-      "Up to 10 students per teacher",
+      "3 subjects total (shared by all teachers)",
+      "Up to 10 students total",
       "10 questions per exam",
+      "Best for 1-2 teachers",
       "Limited support"
     ],
     billingCycle: null
@@ -52,13 +53,14 @@ export const PLAN_CONFIG = {
   premium: {
     name: "Premium Plan",
     price: { NGN: 1500, USD: 1 },
-    subjectLimit: 6, // Per teacher
-    studentLimit: { min: 15, max: 20 }, // Per teacher
+    subjectLimit: 6, // Total for entire school
+    studentLimit: { min: 15, max: 20 }, // Total for entire school
     questionLimit: 30, // Per exam
     features: [
-      "6 subjects per teacher",
-      "15-20 students per teacher",
+      "6 subjects total (shared by all teachers)",
+      "15-20 students total",
       "Up to 30 questions per exam",
+      "Best for 2-3 teachers",
       "Priority support",
       "Advanced analytics"
     ],
@@ -67,13 +69,14 @@ export const PLAN_CONFIG = {
   vip: {
     name: "VIP Plan",
     price: { NGN: 4500, USD: 3 },
-    subjectLimit: { min: 6, max: 10 }, // Per teacher
-    studentLimit: 30, // Per teacher
+    subjectLimit: { min: 6, max: 10 }, // Total for entire school
+    studentLimit: 30, // Total for entire school
     questionLimit: 100, // Per exam
     features: [
-      "6-10 subjects per teacher",
-      "30 students per teacher",
+      "6-10 subjects total (shared by all teachers)",
+      "30 students total",
       "Up to 100 questions per exam",
+      "Best for 3-4 teachers",
       "24/7 support",
       "Custom features",
       "Priority processing"
@@ -105,37 +108,37 @@ export const getActualLimit = (limit) => {
 export const createSchoolDocument = (schoolName, adminUserId, planTier = PLAN_TIERS.FREE) => {
   const plan = PLAN_CONFIG[planTier];
   const now = new Date();
-  
+
   return {
     name: schoolName,
     adminUserId,
     planTier,
     status: SUBSCRIPTION_STATUS.ACTIVE,
-    
+
     // Limits (apply to entire school)
     subjectLimit: getActualLimit(plan.subjectLimit),
     studentLimit: getActualLimit(plan.studentLimit),
-    
+
     // Usage tracking (aggregated across all teachers)
     currentSubjects: 0,
     currentStudents: 0,
-    
+
     // Teacher tracking
     teacherCount: 1, // Admin is the first teacher
-    
+
     // Payment info
     amount: 0,
     currency: CURRENCIES.NGN,
-    
+
     // Timestamps
     startDate: now,
     expiryDate: null, // null for free plan
     lastPaymentDate: null,
-    
+
     // Payment tracking (for paid plans)
     paystackCustomerCode: null,
     paystackSubscriptionCode: null,
-    
+
     // Metadata
     createdAt: now,
     updatedAt: now
@@ -172,33 +175,33 @@ export const createTeacherSchoolDocument = (teacherId, schoolId, role = SCHOOL_R
 export const createSubscriptionDocument = (teacherId, planTier = PLAN_TIERS.FREE) => {
   const plan = PLAN_CONFIG[planTier];
   const now = new Date();
-  
+
   return {
     teacherId,
     planTier,
     status: SUBSCRIPTION_STATUS.ACTIVE,
-    
+
     // Limits
     subjectLimit: getActualLimit(plan.subjectLimit),
     studentLimit: getActualLimit(plan.studentLimit),
-    
+
     // Usage tracking
     currentSubjects: 0,
     currentStudents: 0,
-    
+
     // Payment info
     amount: 0,
     currency: CURRENCIES.NGN,
-    
+
     // Timestamps
     startDate: now,
     expiryDate: null, // null for free plan
     lastPaymentDate: null,
-    
+
     // Payment tracking (for paid plans)
     paystackCustomerCode: null,
     paystackSubscriptionCode: null,
-    
+
     // Metadata
     createdAt: now,
     updatedAt: now

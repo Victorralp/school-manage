@@ -26,8 +26,8 @@ import SchoolSubscriptionWidget from "../../components/Subscription/SchoolSubscr
 import { exportResultsToPDF, exportResultsToExcel } from "../../utils/exportResults";
 import SubjectRegistrationModal from "../../components/Subject/SubjectRegistrationModal";
 import StudentRegistrationModal from "../../components/Student/StudentRegistrationModal";
-import { 
-  registerSubject, 
+import {
+  registerSubject,
   subscribeToTeacherSubjects,
   deleteSubject,
   incrementSubjectExamCount,
@@ -37,11 +37,11 @@ import { registerStudent, deactivateStudent } from "../../firebase/studentServic
 
 const TeacherDashboard = () => {
   const { user, userData } = useAuth();
-  const { 
-    checkLimit, 
-    incrementUsage, 
-    decrementUsage, 
-    subjectUsage, 
+  const {
+    checkLimit,
+    incrementUsage,
+    decrementUsage,
+    subjectUsage,
     studentUsage,
     isNearLimit,
     school,
@@ -257,7 +257,7 @@ const TeacherDashboard = () => {
     try {
       // Generate unique exam code (6 characters)
       const examCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-      
+
       // Create exam document
       const examRef = await addDoc(collection(db, "exams"), {
         title: examForm.title,
@@ -362,13 +362,13 @@ const TeacherDashboard = () => {
       setLoading(true);
       const result = await registerStudent(user.uid, userData?.schoolId, studentData);
       await incrementUsage('student');
-      
+
       // Store the student ID to show in a modal
       setRegisteredStudentId(result.studentId);
-      
+
       showAlert('success', `Student "${result.name}" registered successfully!`);
       fetchTeacherData(); // Refresh student list
-      
+
       return result;
     } catch (error) {
       console.error('Error registering student:', error);
@@ -396,7 +396,7 @@ const TeacherDashboard = () => {
     if (window.confirm("Are you sure you want to delete this exam?")) {
       try {
         const examId = typeof exam === 'string' ? exam : exam.id;
-        
+
         // Delete questions subcollection
         const questionsSnapshot = await getDocs(
           collection(db, "exams", examId, "questions"),
@@ -533,20 +533,20 @@ const TeacherDashboard = () => {
   const averageScore =
     results.length > 0
       ? (
-          results.reduce(
-            (sum, result) => sum + (result.score / result.totalQuestions) * 100,
-            0,
-          ) / results.length
-        ).toFixed(2)
+        results.reduce(
+          (sum, result) => sum + (result.score / result.totalQuestions) * 100,
+          0,
+        ) / results.length
+      ).toFixed(2)
       : 0;
   const passRate =
     results.length > 0
       ? (
-          (results.filter((r) => (r.score / r.totalQuestions) * 100 >= 50)
-            .length /
-            results.length) *
-          100
-        ).toFixed(1)
+        (results.filter((r) => (r.score / r.totalQuestions) * 100 >= 50)
+          .length /
+          results.length) *
+        100
+      ).toFixed(1)
       : 0;
 
   // Check if teacher is approved
@@ -621,7 +621,7 @@ const TeacherDashboard = () => {
       )}
 
       {/* Limit Warning Component */}
-      <LimitWarning 
+      <LimitWarning
         onUpgradeClick={() => {
           // Navigate to subscription settings
           window.location.href = '/teacher/subscription';
@@ -772,11 +772,10 @@ const TeacherDashboard = () => {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`${
-                  activeTab === tab
+                className={`${activeTab === tab
                     ? "border-blue-500 text-blue-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-200`}
+                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-200`}
               >
                 {tab}
               </button>
@@ -828,8 +827,8 @@ const TeacherDashboard = () => {
 
       {activeTab === "subjects" && (
         <div className="space-y-6">
-          <Card 
-            title="Your Registered Subjects" 
+          <Card
+            title="Your Registered Subjects"
             subtitle="Subjects you can create exams for"
             action={
               <Button
@@ -850,8 +849,8 @@ const TeacherDashboard = () => {
                 { header: "Subject Name", accessor: "name" },
                 { header: "Code", accessor: "code" },
                 { header: "Description", accessor: "description" },
-                { 
-                  header: "Exams", 
+                {
+                  header: "Exams",
                   render: (row) => row.examCount || 0
                 },
                 {
@@ -909,7 +908,7 @@ const TeacherDashboard = () => {
                   <p className="text-xs text-gray-600">Subjects Used</p>
                 </div>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-1">
@@ -918,17 +917,15 @@ const TeacherDashboard = () => {
                     {subjectUsage.percentage.toFixed(0)}%
                   </span>
                 </div>
-                <div className={`w-full rounded-full h-3 ${
-                  subjectUsage.percentage >= 100 ? 'bg-red-100' : 
-                  subjectUsage.percentage >= 80 ? 'bg-yellow-100' : 
-                  'bg-green-100'
-                }`}>
+                <div className={`w-full rounded-full h-3 ${subjectUsage.percentage >= 100 ? 'bg-red-100' :
+                    subjectUsage.percentage >= 80 ? 'bg-yellow-100' :
+                      'bg-green-100'
+                  }`}>
                   <div
-                    className={`h-3 rounded-full transition-all duration-300 ${
-                      subjectUsage.percentage >= 100 ? 'bg-red-500' : 
-                      subjectUsage.percentage >= 80 ? 'bg-yellow-500' : 
-                      'bg-green-500'
-                    }`}
+                    className={`h-3 rounded-full transition-all duration-300 ${subjectUsage.percentage >= 100 ? 'bg-red-500' :
+                        subjectUsage.percentage >= 80 ? 'bg-yellow-500' :
+                          'bg-green-500'
+                      }`}
                     style={{ width: `${Math.min(subjectUsage.percentage, 100)}%` }}
                   ></div>
                 </div>
@@ -948,7 +945,7 @@ const TeacherDashboard = () => {
               {subjectUsage.percentage >= 100 ? (
                 <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-3 rounded">
                   <p className="text-sm text-red-800">
-                    <strong>Limit Reached!</strong> Your school has reached the maximum number of subjects. 
+                    <strong>Limit Reached!</strong> Your school has reached the maximum number of subjects.
                     {isAdmin ? ' Upgrade your plan to add more subjects.' : ' Contact your school admin to upgrade.'}
                   </p>
                 </div>
@@ -993,8 +990,8 @@ const TeacherDashboard = () => {
       )}
 
       {activeTab === "results" && (
-        <Card 
-          title="All Results" 
+        <Card
+          title="All Results"
           subtitle="Exam submission results"
           action={
             results.length > 0 && (
@@ -1033,8 +1030,8 @@ const TeacherDashboard = () => {
       )}
 
       {activeTab === "students" && (
-        <Card 
-          title="Your Registered Students" 
+        <Card
+          title="Your Registered Students"
           subtitle="Students you have registered"
           action={
             <Button
@@ -1053,8 +1050,8 @@ const TeacherDashboard = () => {
           <Table
             columns={[
               { header: "Name", accessor: "name" },
-              { 
-                header: "Student ID", 
+              {
+                header: "Student ID",
                 render: (row) => (
                   <div className="flex items-center gap-2">
                     <code className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono text-sm font-bold">
@@ -1077,19 +1074,18 @@ const TeacherDashboard = () => {
                   </div>
                 )
               },
-              { 
-                header: "Contact", 
+              {
+                header: "Contact",
                 render: (row) => row.email || row.phoneNumber || 'N/A'
               },
               {
                 header: "Status",
                 render: (row) => (
                   <span
-                    className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      row.status === "active"
+                    className={`px-2 py-1 text-xs font-semibold rounded-full ${row.status === "active"
                         ? "bg-green-100 text-green-800"
                         : "bg-gray-100 text-gray-800"
-                    }`}
+                      }`}
                   >
                     {row.status}
                   </span>
@@ -1246,7 +1242,7 @@ const TeacherDashboard = () => {
                 {subjects.length === 0 ? (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800">
-                      You haven't registered any subjects yet. 
+                      You haven't registered any subjects yet.
                       <button
                         onClick={() => {
                           setShowCreateModal(false);
@@ -1265,11 +1261,10 @@ const TeacherDashboard = () => {
                         key={subject.id}
                         type="button"
                         onClick={() => setSelectedSubject(subject)}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                          selectedSubject?.id === subject.id
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${selectedSubject?.id === subject.id
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-blue-300'
-                        }`}
+                          }`}
                       >
                         <div className="font-semibold text-gray-900">{subject.name}</div>
                         <div className="text-xs text-gray-500 mt-1">{subject.code}</div>
@@ -1479,11 +1474,10 @@ const TeacherDashboard = () => {
                       key={index}
                       type="button"
                       onClick={() => handleQuestionChange("correctOption", index)}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        currentQuestion.correctOption === index
+                      className={`p-3 rounded-lg border-2 transition-all ${currentQuestion.correctOption === index
                           ? "border-green-500 bg-green-50 text-green-700 font-semibold"
                           : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                      }`}
+                        }`}
                     >
                       <div className="text-center">
                         <div className="text-lg font-bold">
@@ -1571,11 +1565,10 @@ const TeacherDashboard = () => {
                             {q.options.map((opt, i) => (
                               <div
                                 key={i}
-                                className={`flex items-center p-2 rounded-lg text-sm ${
-                                  i === q.correctOption
+                                className={`flex items-center p-2 rounded-lg text-sm ${i === q.correctOption
                                     ? "bg-green-50 border-2 border-green-500 text-green-900 font-semibold"
                                     : "bg-gray-50 border border-gray-200 text-gray-700"
-                                }`}
+                                  }`}
                               >
                                 <span className="font-bold mr-2">
                                   {String.fromCharCode(65 + i)}.
@@ -1735,18 +1728,16 @@ const TeacherDashboard = () => {
                       {q.options.map((opt, i) => (
                         <div
                           key={i}
-                          className={`flex items-center p-2 rounded ${
-                            i === q.correctOption
+                          className={`flex items-center p-2 rounded ${i === q.correctOption
                               ? "bg-green-100 border border-green-300"
                               : "bg-white border border-gray-200"
-                          }`}
+                            }`}
                         >
                           <span
-                            className={`font-semibold mr-2 ${
-                              i === q.correctOption
+                            className={`font-semibold mr-2 ${i === q.correctOption
                                 ? "text-green-700"
                                 : "text-gray-700"
-                            }`}
+                              }`}
                           >
                             {String.fromCharCode(65 + i)}.
                           </span>
@@ -1804,12 +1795,12 @@ const TeacherDashboard = () => {
           {/* Message */}
           <div className="text-center">
             <p className="text-gray-700 mb-4">
-              {limitModalType === 'subject' 
-                ? `You've reached your subject limit of ${subjectUsage.limit}. Upgrade your plan to add more subjects.`
-                : `You've reached your student limit of ${studentUsage.limit}. Upgrade your plan to add more students.`
+              {limitModalType === 'subject'
+                ? `Your school has reached the limit of ${subjectUsage.limit} subjects. Upgrade the school plan to add more subjects.`
+                : `Your school has reached the limit of ${studentUsage.limit} students. Upgrade the school plan to add more students.`
               }
             </p>
-            
+
             {school && (
               <div className="bg-gray-50 rounded-lg p-4 mb-4">
                 <p className="text-sm text-gray-600 mb-2">Current Plan:</p>
@@ -1891,10 +1882,10 @@ const TeacherDashboard = () => {
                 {registeredStudentId}
               </code>
             </div>
-            
+
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                <strong>Important:</strong> Please share this Student ID with the student. 
+                <strong>Important:</strong> Please share this Student ID with the student.
                 They will use it to login to the system.
               </p>
             </div>
