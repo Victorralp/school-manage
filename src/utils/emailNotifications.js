@@ -8,7 +8,7 @@
 
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { formatCurrency } from './paystackConfig';
+import { formatCurrency } from './monnifyConfig';
 
 /**
  * Queue email notification in Firestore
@@ -19,10 +19,10 @@ import { formatCurrency } from './paystackConfig';
 export const queueEmail = async (emailData) => {
   try {
     const { to, subject, template, data } = emailData;
-    
+
     // Create a document in the email queue collection
     const emailRef = doc(db, 'emailQueue', `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-    
+
     await setDoc(emailRef, {
       to,
       subject,
@@ -32,7 +32,7 @@ export const queueEmail = async (emailData) => {
       createdAt: serverTimestamp(),
       attempts: 0
     });
-    
+
     return emailRef.id;
   } catch (error) {
     console.error('Error queueing email:', error);
@@ -87,16 +87,16 @@ export const sendPaymentConfirmationEmail = async ({
           date: formattedDate,
           description: `${planName} - Monthly Subscription`,
           amount: formattedAmount,
-          paymentMethod: 'Paystack',
+          paymentMethod: 'Monnify',
           status: 'Paid'
         }
       }
     };
 
     const emailId = await queueEmail(emailData);
-    
+
     console.log('Payment confirmation email queued:', emailId);
-    
+
     return emailId;
   } catch (error) {
     console.error('Error sending payment confirmation email:', error);
@@ -141,9 +141,9 @@ export const sendRenewalReminderEmail = async ({
     };
 
     const emailId = await queueEmail(emailData);
-    
+
     console.log('Renewal reminder email queued:', emailId);
-    
+
     return emailId;
   } catch (error) {
     console.error('Error sending renewal reminder email:', error);
@@ -182,9 +182,9 @@ export const sendGracePeriodEmail = async ({
     };
 
     const emailId = await queueEmail(emailData);
-    
+
     console.log('Grace period email queued:', emailId);
-    
+
     return emailId;
   } catch (error) {
     console.error('Error sending grace period email:', error);
@@ -220,9 +220,9 @@ export const sendDowngradeEmail = async ({
     };
 
     const emailId = await queueEmail(emailData);
-    
+
     console.log('Downgrade notification email queued:', emailId);
-    
+
     return emailId;
   } catch (error) {
     console.error('Error sending downgrade email:', error);
@@ -247,7 +247,7 @@ export const createReceipt = async (receiptData) => {
     } = receiptData;
 
     const receiptRef = doc(db, 'receipts', transactionId);
-    
+
     await setDoc(receiptRef, {
       teacherId,
       transactionId,
@@ -256,7 +256,7 @@ export const createReceipt = async (receiptData) => {
       currency,
       paymentDate,
       description: `${planName} - Monthly Subscription`,
-      paymentMethod: 'Paystack',
+      paymentMethod: 'Monnify',
       status: 'paid',
       createdAt: serverTimestamp()
     });

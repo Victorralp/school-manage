@@ -1,33 +1,30 @@
 /**
  * Payment Verification Utility
- * Handles Paystack payment verification and transaction processing
+ * Handles Monnify payment verification and transaction processing
  */
 
 import { doc, setDoc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
-import { getPaystackSecretKey } from './paystackConfig';
+import { getMonnifyAuthHeader, getMonnifyApiBaseUrl } from './monnifyConfig';
 import { sendPaymentConfirmationEmail, createReceipt } from './emailNotifications';
 import { logPaymentTransaction, logPlanUpgrade } from './subscriptionEventLogger';
 
 /**
- * Verify payment with Paystack API
- * @param {string} reference - Paystack transaction reference
+ * Verify payment with Monnify API
+ * @param {string} transactionReference - Monnify transaction reference
  * @returns {Promise<Object>} Verification result
  */
-export const verifyPaystackPayment = async (reference) => {
+export const verifyMonnifyPayment = async (transactionReference) => {
   try {
-    const secretKey = getPaystackSecretKey();
-    
-    if (!secretKey) {
-      throw new Error('Paystack secret key not configured');
-    }
+    const authHeader = getMonnifyAuthHeader();
+    const baseUrl = getMonnifyApiBaseUrl();
 
     const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${reference}`,
+      `${baseUrl}/api/v2/transactions/${encodeURIComponent(transactionReference)}`,
       {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${secretKey}`,
+          Authorization: authHeader,
           'Content-Type': 'application/json'
         }
       }
@@ -35,18 +32,18 @@ export const verifyPaystackPayment = async (reference) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.message || 'Payment verification failed');
+      throw new Error(errorData.responseMessage || 'Payment verification failed');
     }
 
     const data = await response.json();
-    
-    if (!data.status) {
-      throw new Error(data.message || 'Payment verification failed');
+
+    if (!data.requestSuccessful) {
+      throw new Error(data.responseMessage || 'Payment verification failed');
     }
 
     return {
       success: true,
-      data: data.data
+      data: data.responseBody
     };
   } catch (error) {
     console.error('Payment verification error:', error);
@@ -71,25 +68,26 @@ export const createTransactionRecord = async (teacherId, paymentData) => {
       amount,
       currency,
       status,
-      paystackResponse
+      monnifyResponse
     } = paymentData;
 
     const transactionRef = doc(db, 'transactions', reference);
-    
+
     const transactionData = {
       teacherId,
       planTier,
       amount,
       currency,
       status: status || 'success',
-      paystackReference: reference,
-      paystackResponse: paystackResponse || {},
+      monnifyReference: reference,
+      monnifyResponse: monnifyResponse || {},
+      paymentProvider: 'monnify',
       createdAt: serverTimestamp(),
       completedAt: serverTimestamp()
     };
 
     await setDoc(transactionRef, transactionData);
-    
+
     return reference;
   } catch (error) {
     console.error('Error creating transaction record:', error);
@@ -106,9 +104,9 @@ export const createTransactionRecord = async (teacherId, paymentData) => {
 export const updateSubscriptionPlan = async (teacherId, planDetails) => {
   try {
     const { planTier, subjectLimit, studentLimit, amount, currency } = planDetails;
-    
+
     const subscriptionRef = doc(db, 'subscriptions', teacherId);
-    
+
     // Get current subscription to preserve usage counts
     const subscriptionDoc = await getDoc(subscriptionRef);
     const currentData = subscriptionDoc.exists() ? subscriptionDoc.data() : {};
@@ -152,12 +150,14 @@ export const updateSubscriptionPlan = async (teacherId, planDetails) => {
  * Process complete payment flow
  * @param {string} teacherId - Teacher's user ID
  * @param {Object} paymentDetails - Payment and plan details
+ * @param {boolean} isSchoolPayment - Whether this is a school-level payment
  * @returns {Promise<Object>} Processing result
  */
-export const processPayment = async (teacherId, paymentDetails) => {
+export const processPayment = async (teacherId, paymentDetails, isSchoolPayment = false) => {
   try {
     const {
       reference,
+      transactionReference,
       planTier,
       planName,
       amount,
@@ -166,24 +166,28 @@ export const processPayment = async (teacherId, paymentDetails) => {
       studentLimit,
       userEmail,
       userName,
-      verifyWithPaystack = true
+      verifyWithMonnify = true
     } = paymentDetails;
 
-    // Step 1: Verify payment with Paystack (if enabled)
-    if (verifyWithPaystack) {
-      const verificationResult = await verifyPaystackPayment(reference);
-      
+    // Use transactionReference (Monnify's reference) for verification
+    const monnifyRef = transactionReference || reference;
+
+    // Step 1: Verify payment with Monnify (if enabled)
+    if (verifyWithMonnify) {
+      const verificationResult = await verifyMonnifyPayment(monnifyRef);
+
       if (!verificationResult.success) {
         throw new Error(verificationResult.error || 'Payment verification failed');
       }
 
       // Check if payment was successful
-      if (verificationResult.data.status !== 'success') {
-        throw new Error('Payment was not successful');
+      const paymentStatus = verificationResult.data.paymentStatus;
+      if (paymentStatus !== 'PAID') {
+        throw new Error(`Payment status is ${paymentStatus}, expected PAID`);
       }
 
       // Verify amount matches
-      const paidAmount = verificationResult.data.amount / 100; // Convert from kobo
+      const paidAmount = verificationResult.data.amountPaid;
       if (Math.abs(paidAmount - amount) > 0.01) {
         throw new Error('Payment amount mismatch');
       }
@@ -191,12 +195,12 @@ export const processPayment = async (teacherId, paymentDetails) => {
 
     // Step 2: Create transaction record
     await createTransactionRecord(teacherId, {
-      reference,
+      reference: monnifyRef,
       planTier,
       amount,
       currency,
       status: 'success',
-      paystackResponse: verifyWithPaystack ? paymentDetails.paystackResponse : {}
+      monnifyResponse: paymentDetails.monnifyResponse || {}
     });
 
     // Step 3: Get current plan for logging
@@ -214,18 +218,18 @@ export const processPayment = async (teacherId, paymentDetails) => {
     });
 
     // Step 5: Log payment transaction
-    await logPaymentTransaction(teacherId, planTier, amount, currency, reference, 'success');
+    await logPaymentTransaction(teacherId, planTier, amount, currency, monnifyRef, 'success');
 
     // Step 6: Log plan upgrade if applicable
     if (currentPlan !== planTier) {
-      await logPlanUpgrade(teacherId, currentPlan, planTier, amount, currency, reference);
+      await logPlanUpgrade(teacherId, currentPlan, planTier, amount, currency, monnifyRef);
     }
 
     // Step 7: Create receipt
     const paymentDate = new Date();
     await createReceipt({
       teacherId,
-      transactionId: reference,
+      transactionId: monnifyRef,
       planName: planName || `${planTier} Plan`,
       amount,
       currency,
@@ -237,7 +241,7 @@ export const processPayment = async (teacherId, paymentDetails) => {
       sendPaymentConfirmationEmail({
         userEmail,
         userName,
-        transactionId: reference,
+        transactionId: monnifyRef,
         planName: planName || `${planTier} Plan`,
         planTier,
         amount,
@@ -254,20 +258,20 @@ export const processPayment = async (teacherId, paymentDetails) => {
     return {
       success: true,
       message: 'Payment processed successfully',
-      transactionId: reference
+      transactionId: monnifyRef
     };
   } catch (error) {
     console.error('Payment processing error:', error);
-    
+
     // Log failed transaction
     try {
       await createTransactionRecord(teacherId, {
-        reference: paymentDetails.reference,
+        reference: paymentDetails.transactionReference || paymentDetails.reference,
         planTier: paymentDetails.planTier,
         amount: paymentDetails.amount,
         currency: paymentDetails.currency,
         status: 'failed',
-        paystackResponse: { error: error.message }
+        monnifyResponse: { error: error.message }
       });
     } catch (logError) {
       console.error('Failed to log transaction error:', logError);
@@ -283,25 +287,25 @@ export const processPayment = async (teacherId, paymentDetails) => {
 /**
  * Handle webhook payment confirmation (for backend use)
  * This function should be called from a Cloud Function or backend endpoint
- * @param {Object} webhookData - Paystack webhook payload
+ * @param {Object} webhookData - Monnify webhook payload
  * @returns {Promise<Object>} Processing result
  */
 export const handlePaymentWebhook = async (webhookData) => {
   try {
-    const { event, data } = webhookData;
+    const { eventType, eventData } = webhookData;
 
-    // Only process successful charge events
-    if (event !== 'charge.success') {
+    // Only process successful transaction events
+    if (eventType !== 'SUCCESSFUL_TRANSACTION') {
       return {
         success: false,
         message: 'Event not processed'
       };
     }
 
-    // Extract metadata
-    const metadata = data.metadata || {};
-    const teacherId = metadata.teacher_id;
-    const planTier = metadata.plan_tier;
+    // Extract metadata from the transaction
+    const metaData = eventData.metaData || {};
+    const teacherId = metaData.teacher_id;
+    const planTier = metaData.plan_tier;
 
     if (!teacherId || !planTier) {
       throw new Error('Missing required metadata');
@@ -310,7 +314,7 @@ export const handlePaymentWebhook = async (webhookData) => {
     // Get plan configuration to determine limits
     const planConfigRef = doc(db, 'config', 'plans');
     const planConfigDoc = await getDoc(planConfigRef);
-    
+
     if (!planConfigDoc.exists()) {
       throw new Error('Plan configuration not found');
     }
@@ -323,8 +327,8 @@ export const handlePaymentWebhook = async (webhookData) => {
     }
 
     // Determine actual limits
-    const subjectLimit = typeof plan.subjectLimit === 'object' 
-      ? plan.subjectLimit.max 
+    const subjectLimit = typeof plan.subjectLimit === 'object'
+      ? plan.subjectLimit.max
       : plan.subjectLimit;
     const studentLimit = typeof plan.studentLimit === 'object'
       ? plan.studentLimit.max
@@ -332,14 +336,15 @@ export const handlePaymentWebhook = async (webhookData) => {
 
     // Process payment
     const result = await processPayment(teacherId, {
-      reference: data.reference,
+      reference: eventData.paymentReference,
+      transactionReference: eventData.transactionReference,
       planTier,
-      amount: data.amount / 100, // Convert from kobo
-      currency: data.currency,
+      amount: eventData.amountPaid,
+      currency: eventData.currency,
       subjectLimit,
       studentLimit,
-      verifyWithPaystack: false, // Already verified by webhook
-      paystackResponse: data
+      verifyWithMonnify: false, // Already verified by webhook
+      monnifyResponse: eventData
     });
 
     return result;
@@ -353,7 +358,7 @@ export const handlePaymentWebhook = async (webhookData) => {
 };
 
 export default {
-  verifyPaystackPayment,
+  verifyMonnifyPayment,
   createTransactionRecord,
   updateSubscriptionPlan,
   processPayment,

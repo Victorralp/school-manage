@@ -14,10 +14,10 @@ import { useAuth } from '../../context/AuthContext';
 
 const SchoolSubscriptionManagement = () => {
   const { user } = useAuth();
-  const { 
-    school, 
-    isAdmin, 
-    cancelSubscription, 
+  const {
+    school,
+    isAdmin,
+    cancelSubscription,
     upgradePlan,
     teacherRelationship,
     subjectUsage,
@@ -41,7 +41,7 @@ const SchoolSubscriptionManagement = () => {
 
   const fetchTransactions = async () => {
     if (!school) return;
-    
+
     setLoadingTransactions(true);
     try {
       const transactionsData = await getTransactionHistory(school.id);
@@ -57,12 +57,12 @@ const SchoolSubscriptionManagement = () => {
     console.log('handleUpgradeClick called');
     console.log('isAdmin:', isAdmin);
     console.log('Current showPlanComparison:', showPlanComparison);
-    
+
     if (!isAdmin) {
       toast.info('Only school admins can upgrade the plan.');
       return;
     }
-    
+
     console.log('Setting showPlanComparison to true');
     setShowPlanComparison(true);
   };
@@ -120,7 +120,7 @@ const SchoolSubscriptionManagement = () => {
     try {
       setLoading(true);
       const result = await cancelSubscription();
-      
+
       if (result.success) {
         toast.warning('School subscription cancelled. The school will be downgraded to Free plan after the grace period.');
         setShowCancelModal(false);
@@ -136,9 +136,9 @@ const SchoolSubscriptionManagement = () => {
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -327,9 +327,8 @@ const SchoolSubscriptionManagement = () => {
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-gray-100">
                   <span className="text-sm text-gray-600">Status</span>
-                  <span className={`text-sm font-semibold capitalize ${
-                    school.status === 'active' ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
+                  <span className={`text-sm font-semibold capitalize ${school.status === 'active' ? 'text-green-600' : 'text-yellow-600'
+                    }`}>
                     {school.status}
                   </span>
                 </div>
@@ -432,18 +431,17 @@ const SchoolSubscriptionManagement = () => {
                         {formatCurrency(transaction.amount, transaction.currency)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          transaction.status === 'success'
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'success'
                             ? 'bg-green-100 text-green-800'
                             : transaction.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}>
                           {transaction.status}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                        {transaction.paystackReference?.substring(0, 12)}...
+                        {(transaction.monnifyReference || transaction.paystackReference)?.substring(0, 12)}...
                       </td>
                     </tr>
                   ))}

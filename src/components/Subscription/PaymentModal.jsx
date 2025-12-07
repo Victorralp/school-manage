@@ -1,39 +1,52 @@
 import { useState, useEffect } from 'react';
-import { PaystackButton } from 'react-paystack';
+import { useMonnifyPayment } from 'react-monnify';
 import Modal from '../Modal';
 import Button from '../Button';
-import { 
-  validatePaystackConfig, 
-  convertToKobo, 
+import {
+  validateMonnifyConfig,
   formatCurrency,
   generateTransactionReference,
-  getPaystackPublicKey
-} from '../../utils/paystackConfig';
+  getMonnifyApiKey,
+  getMonnifyContractCode,
+  isMonnifyTestMode
+} from '../../utils/monnifyConfig';
 import { useAuth } from '../../context/AuthContext';
 
-const PaymentModal = ({ 
-  isOpen, 
-  onClose, 
-  planTier, 
-  planName,
-  amount,
-  currency = 'NGN',
-  features = [],
-  subjectLimit,
-  studentLimit,
+const PaymentModal = ({
+  isOpen,
+  onClose,
+  // Support both individual props and planDetails object
+  planDetails,
+  planTier: propPlanTier,
+  planName: propPlanName,
+  amount: propAmount,
+  currency: propCurrency = 'NGN',
+  features: propFeatures = [],
+  subjectLimit: propSubjectLimit,
+  studentLimit: propStudentLimit,
   onSuccess,
   onError
 }) => {
   const { user } = useAuth();
+
+  // Extract values from planDetails if provided, otherwise use individual props
+  const planTier = planDetails?.planTier ?? propPlanTier;
+  const planName = planDetails?.planName ?? propPlanName ?? 'Subscription';
+  const amount = planDetails?.amount ?? propAmount ?? 0;
+  const currency = planDetails?.currency ?? propCurrency ?? 'NGN';
+  const features = planDetails?.features ?? propFeatures ?? [];
+  const subjectLimit = planDetails?.subjectLimit ?? propSubjectLimit ?? 0;
+  const studentLimit = planDetails?.studentLimit ?? propStudentLimit ?? 0;
+
   const [selectedCurrency, setSelectedCurrency] = useState(currency);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
   const [configValid, setConfigValid] = useState(false);
 
-  // Validate Paystack configuration on mount
+  // Validate Monnify configuration on mount
   useEffect(() => {
     try {
-      validatePaystackConfig();
+      validateMonnifyConfig();
       setConfigValid(true);
       setError(null);
     } catch (err) {
@@ -51,91 +64,82 @@ const PaymentModal = ({
     }
   }, [isOpen, currency]);
 
-  // Get plan details based on selected currency
-  const getPlanDetails = () => {
-    // In a real implementation, you'd fetch different prices for different currencies
-    // For now, we'll use the provided amount
-    return {
-      amount: amount,
-      currency: selectedCurrency,
-      amountInKobo: convertToKobo(amount, selectedCurrency)
-    };
-  };
+  // Safe amount for display
+  const safeAmount = amount || 0;
 
-  const planDetails = getPlanDetails();
-
-  // Paystack configuration
-  const paystackConfig = {
-    reference: generateTransactionReference(user?.uid || 'unknown', planTier),
-    email: user?.email || '',
-    amount: planDetails.amountInKobo,
+  // Monnify configuration
+  const monnifyConfig = {
+    amount: safeAmount, // Monnify uses main currency unit (not kobo)
     currency: selectedCurrency,
-    publicKey: getPaystackPublicKey(),
+    reference: generateTransactionReference(user?.uid, planTier),
+    customerFullName: user?.displayName || 'Customer',
+    customerEmail: user?.email || '',
+    apiKey: getMonnifyApiKey(),
+    contractCode: getMonnifyContractCode(),
+    paymentDescription: `${planName} Subscription`,
+    isTestMode: isMonnifyTestMode(),
     metadata: {
-      custom_fields: [
-        {
-          display_name: 'Plan Tier',
-          variable_name: 'plan_tier',
-          value: planTier
-        },
-        {
-          display_name: 'Teacher ID',
-          variable_name: 'teacher_id',
-          value: user?.uid || ''
-        },
-        {
-          display_name: 'Plan Name',
-          variable_name: 'plan_name',
-          value: planName
-        }
-      ]
+      plan_tier: planTier,
+      teacher_id: user?.uid || '',
+      plan_name: planName
     }
   };
 
   // Handle successful payment
-  const handlePaymentSuccess = (reference) => {
+  const handlePaymentComplete = (response) => {
     setIsProcessing(true);
-    
+
     // Call the onSuccess callback with payment details
     if (onSuccess) {
       onSuccess({
-        reference: reference.reference,
-        status: reference.status,
-        message: reference.message,
-        transaction: reference.transaction,
+        reference: response.paymentReference,
+        transactionReference: response.transactionReference,
+        status: response.paymentStatus,
+        message: response.paymentDescription,
+        amountPaid: response.amountPaid,
         planTier,
-        amount: planDetails.amount,
-        currency: selectedCurrency
+        amount: parseFloat(response.amountPaid) || safeAmount,
+        currency: selectedCurrency,
+        monnifyResponse: response
       });
     }
-    
+
     setIsProcessing(false);
   };
 
   // Handle payment closure (user closed popup)
-  const handlePaymentClose = () => {
+  const handlePaymentClose = (data) => {
     setIsProcessing(false);
-    // Don't close the modal automatically, let user decide
-  };
-
-  // Handle payment error
-  const handlePaymentError = (error) => {
-    setIsProcessing(false);
-    const errorMessage = error?.message || 'Payment failed. Please try again.';
-    setError(errorMessage);
-    
-    if (onError) {
-      onError(error);
+    // Check if user cancelled
+    if (data?.paymentStatus === 'USER_CANCELLED') {
+      console.log('User cancelled the payment');
     }
   };
 
-  // Paystack component props
-  const componentProps = {
-    ...paystackConfig,
-    text: `Pay ${formatCurrency(planDetails.amount, selectedCurrency)}`,
-    onSuccess: handlePaymentSuccess,
-    onClose: handlePaymentClose,
-    onError: handlePaymentError
+  // Initialize Monnify payment hook
+  const initializePayment = useMonnifyPayment(monnifyConfig);
+
+  // Handle pay button click
+  const handlePayClick = () => {
+    if (!user?.email) {
+      setError('Please ensure you are logged in with a valid email address.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      initializePayment(handlePaymentComplete, handlePaymentClose);
+    } catch (err) {
+      setIsProcessing(false);
+      const errorMessage = err?.message || 'Payment initialization failed. Please try again.';
+      setError(errorMessage);
+
+      if (onError) {
+        onError(err);
+      }
+    }
   };
 
   return (
@@ -209,27 +213,25 @@ const PaymentModal = ({
               type="button"
               onClick={() => setSelectedCurrency('NGN')}
               disabled={isProcessing}
-              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${
-                selectedCurrency === 'NGN'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 hover:border-gray-400'
-              } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'NGN'
+                ? 'border-blue-600 bg-blue-50 text-blue-700'
+                : 'border-gray-300 hover:border-gray-400'
+                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               <div className="text-xs sm:text-sm font-semibold">Nigerian Naira</div>
-              <div className="text-base sm:text-lg font-bold mt-1">₦{amount.toLocaleString()}</div>
+              <div className="text-base sm:text-lg font-bold mt-1">₦{safeAmount.toLocaleString()}</div>
             </button>
             <button
               type="button"
               onClick={() => setSelectedCurrency('USD')}
               disabled={isProcessing}
-              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${
-                selectedCurrency === 'USD'
-                  ? 'border-blue-600 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 hover:border-gray-400'
-              } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'USD'
+                ? 'border-blue-600 bg-blue-50 text-blue-700'
+                : 'border-gray-300 hover:border-gray-400'
+                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               <div className="text-xs sm:text-sm font-semibold">US Dollar</div>
-              <div className="text-base sm:text-lg font-bold mt-1">${amount.toLocaleString()}</div>
+              <div className="text-base sm:text-lg font-bold mt-1">${safeAmount.toLocaleString()}</div>
             </button>
           </div>
         </div>
@@ -239,7 +241,7 @@ const PaymentModal = ({
           <div className="flex justify-between items-center">
             <span className="text-gray-700 font-medium">Total Amount:</span>
             <span className="text-2xl font-bold text-gray-900">
-              {formatCurrency(planDetails.amount, selectedCurrency)}
+              {formatCurrency(safeAmount, selectedCurrency)}
             </span>
           </div>
         </div>
@@ -255,15 +257,18 @@ const PaymentModal = ({
           >
             Cancel
           </Button>
-          
+
           {configValid ? (
-            <div className="flex-1">
-              <PaystackButton 
-                {...componentProps}
-                className="w-full px-3 sm:px-4 py-2 text-sm sm:text-base font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                disabled={isProcessing || !user?.email}
-              />
-            </div>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={handlePayClick}
+              disabled={isProcessing || !user?.email}
+              size="md"
+              className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
+            >
+              {isProcessing ? 'Processing...' : `Pay ${formatCurrency(safeAmount, selectedCurrency)}`}
+            </Button>
           ) : (
             <Button
               variant="primary"
@@ -298,7 +303,7 @@ const PaymentModal = ({
 
         {/* Security Notice */}
         <p className="text-xs text-gray-500 text-center">
-          Payments are securely processed by Paystack. Your payment information is encrypted and secure.
+          Payments are securely processed by Monnify (Moniepoint). Your payment information is encrypted and secure.
         </p>
       </div>
     </Modal>

@@ -14,12 +14,12 @@ import { useAuth } from '../../context/AuthContext';
 
 const SchoolSubscriptionSettings = () => {
   const { user } = useAuth();
-  const { 
-    school, 
-    isAdmin, 
-    cancelSubscription, 
+  const {
+    school,
+    isAdmin,
+    cancelSubscription,
     upgradePlan,
-    teacherRelationship 
+    teacherRelationship
   } = useSchoolSubscription();
   const toast = useToast();
   const [showPlanComparison, setShowPlanComparison] = useState(false);
@@ -39,7 +39,7 @@ const SchoolSubscriptionSettings = () => {
 
   const fetchTransactions = async () => {
     if (!school) return;
-    
+
     setLoadingTransactions(true);
     try {
       const transactionsData = await getTransactionHistory(school.id);
@@ -112,7 +112,7 @@ const SchoolSubscriptionSettings = () => {
     try {
       setLoading(true);
       const result = await cancelSubscription();
-      
+
       if (result.success) {
         toast.warning('School subscription cancelled. The school will be downgraded to Free plan after the grace period.');
         setShowCancelModal(false);
@@ -128,9 +128,9 @@ const SchoolSubscriptionSettings = () => {
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -212,7 +212,7 @@ const SchoolSubscriptionSettings = () => {
             ) : (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900">
-                  <strong>Note:</strong> Only school admins can upgrade or manage the subscription plan. 
+                  <strong>Note:</strong> Only school admins can upgrade or manage the subscription plan.
                   If you need to upgrade, please contact your school admin.
                 </p>
               </div>
@@ -283,18 +283,17 @@ const SchoolSubscriptionSettings = () => {
                           {formatCurrency(transaction.amount, transaction.currency)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            transaction.status === 'success'
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'success'
                               ? 'bg-green-100 text-green-800'
                               : transaction.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : 'bg-red-100 text-red-800'
+                            }`}>
                             {transaction.status}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
-                          {transaction.paystackReference?.substring(0, 12)}...
+                          {(transaction.monnifyReference || transaction.paystackReference)?.substring(0, 12)}...
                         </td>
                       </tr>
                     ))}

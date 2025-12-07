@@ -411,7 +411,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     };
   }, [user, isAdmin, availablePlans, school, validatePlanChange, getActualLimit]);
 
-  // Process payment after successful Paystack transaction (admin only)
+  // Process payment after successful Monnify transaction (admin only)
   const handlePaymentSuccess = useCallback(async (paymentData) => {
     if (!user) {
       throw new Error("User not authenticated");

@@ -136,8 +136,8 @@ export const createSchoolDocument = (schoolName, adminUserId, planTier = PLAN_TI
     lastPaymentDate: null,
 
     // Payment tracking (for paid plans)
-    paystackCustomerCode: null,
-    paystackSubscriptionCode: null,
+    monnifyTransactionReference: null,
+    paymentProvider: 'monnify',
 
     // Metadata
     createdAt: now,
@@ -199,8 +199,8 @@ export const createSubscriptionDocument = (teacherId, planTier = PLAN_TIERS.FREE
     lastPaymentDate: null,
 
     // Payment tracking (for paid plans)
-    paystackCustomerCode: null,
-    paystackSubscriptionCode: null,
+    monnifyTransactionReference: null,
+    paymentProvider: 'monnify',
 
     // Metadata
     createdAt: now,
@@ -215,10 +215,10 @@ export const createSubscriptionDocument = (teacherId, planTier = PLAN_TIERS.FREE
  * @param {string} planTier - The plan tier being purchased
  * @param {number} amount - Payment amount
  * @param {string} currency - Currency (NGN or USD)
- * @param {string} paystackReference - Paystack transaction reference
+ * @param {string} monnifyReference - Monnify transaction reference
  * @returns {object} - Transaction document structure
  */
-export const createTransactionDocument = (schoolId, paidByUserId, planTier, amount, currency, paystackReference) => {
+export const createTransactionDocument = (schoolId, paidByUserId, planTier, amount, currency, monnifyReference) => {
   return {
     schoolId,
     paidByUserId,
@@ -226,8 +226,9 @@ export const createTransactionDocument = (schoolId, paidByUserId, planTier, amou
     amount,
     currency,
     status: 'pending',
-    paystackReference,
-    paystackResponse: null,
+    monnifyReference,
+    monnifyResponse: null,
+    paymentProvider: 'monnify',
     createdAt: new Date(),
     completedAt: null
   };
