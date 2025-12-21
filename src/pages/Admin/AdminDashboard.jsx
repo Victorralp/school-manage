@@ -16,6 +16,7 @@ import Button from "../../components/Button";
 import Modal from "../../components/Modal";
 import Alert from "../../components/Alert";
 import SubscriptionMetrics from "./SubscriptionMetrics";
+import PromoManager from '../../components/Subscription/PromoManager';
 
 const AdminDashboard = () => {
   const [schools, setSchools] = useState([]);
@@ -298,16 +299,15 @@ const AdminDashboard = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {["overview", "schools", "teachers", "students", "exams", "subscriptions"].map(
+            {["overview", "schools", "teachers", "students", "exams", "subscriptions", "promos"].map(
               (tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`${
-                    activeTab === tab
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-200`}
+                  className={`${activeTab === tab
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                    } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-200`}
                 >
                   {tab}
                 </button>
@@ -481,6 +481,15 @@ const AdminDashboard = () => {
 
       {activeTab === "subscriptions" && (
         <SubscriptionMetrics />
+      )}
+
+      {activeTab === "promos" && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-4">Promo Code Management</h2>
+          <p className="text-gray-600 mb-6">Create and manage discount codes for school subscriptions.</p>
+          {/* Re-using the modal for now, or could embed the logic directly if preferred */}
+          <PromoManager />
+        </div>
       )}
     </Layout>
   );

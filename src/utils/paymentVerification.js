@@ -8,6 +8,7 @@ import { db } from '../firebase/config';
 import { getMonnifyAuthHeader, getMonnifyApiBaseUrl } from './monnifyConfig';
 import { sendPaymentConfirmationEmail, createReceipt } from './emailNotifications';
 import { logPaymentTransaction, logPlanUpgrade } from './subscriptionEventLogger';
+import { incrementPromoUsage } from '../firebase/schoolService';
 
 /**
  * Verify payment with Monnify API
@@ -18,9 +19,16 @@ export const verifyMonnifyPayment = async (transactionReference) => {
   try {
     const authHeader = getMonnifyAuthHeader();
     const baseUrl = getMonnifyApiBaseUrl();
+    const url = `${baseUrl}/api/v2/transactions/${encodeURIComponent(transactionReference)}`;
+
+    console.log('Verifying Monnify Payment:', {
+      transactionReference,
+      baseUrl,
+      url
+    });
 
     const response = await fetch(
-      `${baseUrl}/api/v2/transactions/${encodeURIComponent(transactionReference)}`,
+      url,
       {
         method: 'GET',
         headers: {
@@ -68,7 +76,10 @@ export const createTransactionRecord = async (teacherId, paymentData) => {
       amount,
       currency,
       status,
-      monnifyResponse
+      monnifyResponse,
+      promoCode = null,
+      discountAmount = 0,
+      originalAmount = 0
     } = paymentData;
 
     const transactionRef = doc(db, 'transactions', reference);
@@ -82,6 +93,9 @@ export const createTransactionRecord = async (teacherId, paymentData) => {
       monnifyReference: reference,
       monnifyResponse: monnifyResponse || {},
       paymentProvider: 'monnify',
+      promoCode,
+      discountAmount,
+      originalAmount,
       createdAt: serverTimestamp(),
       completedAt: serverTimestamp()
     };
@@ -200,8 +214,16 @@ export const processPayment = async (teacherId, paymentDetails, isSchoolPayment 
       amount,
       currency,
       status: 'success',
-      monnifyResponse: paymentDetails.monnifyResponse || {}
+      monnifyResponse: paymentDetails.monnifyResponse || {},
+      promoCode: paymentDetails.promoCode,
+      discountAmount: paymentDetails.discountAmount,
+      originalAmount: paymentDetails.originalAmount
     });
+
+    // Step 2b: Increment promo usage if used
+    if (paymentDetails.promoId) {
+      await incrementPromoUsage(paymentDetails.promoId);
+    }
 
     // Step 3: Get current plan for logging
     const subscriptionRef = doc(db, 'subscriptions', teacherId);
@@ -271,7 +293,10 @@ export const processPayment = async (teacherId, paymentDetails, isSchoolPayment 
         amount: paymentDetails.amount,
         currency: paymentDetails.currency,
         status: 'failed',
-        monnifyResponse: { error: error.message }
+        monnifyResponse: { error: error.message },
+        promoCode: paymentDetails.promoCode,
+        discountAmount: paymentDetails.discountAmount,
+        originalAmount: paymentDetails.originalAmount
       });
     } catch (logError) {
       console.error('Failed to log transaction error:', logError);

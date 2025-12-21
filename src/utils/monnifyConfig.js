@@ -48,6 +48,11 @@ export const isMonnifyTestMode = () => {
 
 // Get Monnify API base URL based on environment
 export const getMonnifyApiBaseUrl = () => {
+    // If running in development, use the local proxy to avoid CORS
+    if (import.meta.env.DEV) {
+        return isMonnifyTestMode() ? '/monnify-proxy' : '/monnify-prod-proxy';
+    }
+
     return isMonnifyTestMode()
         ? 'https://sandbox.monnify.com'
         : 'https://api.monnify.com';
@@ -124,8 +129,17 @@ export const getMonnifyAuthHeader = () => {
     const secretKey = getMonnifySecretKey();
 
     if (!apiKey || !secretKey) {
+        console.error('Monnify Credentials Missing - API Key:', !!apiKey, 'Secret Key:', !!secretKey);
         throw new Error('Monnify credentials not configured');
     }
+
+    // Debug log to verify keys (masked)
+    console.log('Monnify Auth Debug:', {
+        mode: isMonnifyTestMode() ? 'TEST' : 'LIVE',
+        apiKeyPrefix: apiKey.substring(0, 8) + '...',
+        secretKeyPrefix: secretKey.substring(0, 4) + '...',
+        authStringLength: btoa(`${apiKey}:${secretKey}`).length
+    });
 
     const credentials = btoa(`${apiKey}:${secretKey}`);
     return `Basic ${credentials}`;

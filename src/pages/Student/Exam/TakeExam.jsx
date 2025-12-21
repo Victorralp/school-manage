@@ -112,8 +112,8 @@ const TakeExam = () => {
     showAlert("success", "Exam started! Good luck!");
   };
 
-  const handleAnswerChange = (questionId, optionIndex) => {
-    setAnswers({ ...answers, [questionId]: optionIndex });
+  const handleAnswerChange = (questionId, value) => {
+    setAnswers({ ...answers, [questionId]: value });
   };
 
   const handleAutoSubmit = async () => {
@@ -142,9 +142,14 @@ const TakeExam = () => {
     try {
       // Calculate score
       let correct = 0;
+      let objectiveCount = 0;
+
       questions.forEach((q) => {
-        if (parseInt(answers[q.id]) === q.correctOption) {
-          correct += 1;
+        if (!q.type || q.type === 'objective') {
+          objectiveCount++;
+          if (answers[q.id] !== undefined && parseInt(answers[q.id]) === q.correctOption) {
+            correct += 1;
+          }
         }
       });
 
@@ -238,17 +243,25 @@ const TakeExam = () => {
     );
   }
 
+
+
+  // Helper to check if exam has theory questions
+  const hasTheoryQuestions = questions.some(q => q.type === 'theory');
+  const objectiveQuestionsCount = questions.filter(q => !q.type || q.type === 'objective').length;
+
   if (completed) {
-    const percentage = calculatePercentage();
     const passed = isPassed();
+    // Calculate percentage based on objective questions only for immediate feedback
+    // If mixed, use objective count. If all theory, show 0 or specific message.
+    const gradableCount = objectiveQuestionsCount > 0 ? objectiveQuestionsCount : questions.length;
+    const percentage = objectiveQuestionsCount > 0 ? ((score / objectiveQuestionsCount) * 100).toFixed(1) : 0;
 
     return (
       <Layout title="Exam Completed">
         <Card className="text-center py-12">
           <div
-            className={`mx-auto h-20 w-20 rounded-full flex items-center justify-center mb-6 ${
-              passed ? "bg-green-100" : "bg-red-100"
-            }`}
+            className={`mx-auto h-20 w-20 rounded-full flex items-center justify-center mb-6 ${passed ? "bg-green-100" : "bg-red-100"
+              }`}
           >
             {passed ? (
               <svg
@@ -285,22 +298,31 @@ const TakeExam = () => {
             Exam Submitted Successfully!
           </h2>
           <p className="text-gray-600 mb-8">
-            {passed
-              ? "Congratulations! You passed the exam."
-              : "Keep practicing. You'll do better next time!"}
+            {hasTheoryQuestions
+              ? "Your exam has been submitted. Objective questions have been graded."
+              : (passed ? "Congratulations! You passed the exam." : "Keep practicing. You'll do better next time!")
+            }
           </p>
+
+          {hasTheoryQuestions && (
+            <Alert
+              type="info"
+              message="Note: This score reflects your performance on objective questions only. Theory questions are pending manual review."
+              className="max-w-2xl mx-auto mb-8"
+            />
+          )}
 
           <div className="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-gray-50 p-6 rounded-lg">
-              <p className="text-sm text-gray-600 mb-2">Your Score</p>
+              <p className="text-sm text-gray-600 mb-2">Objective Score</p>
               <p className="text-3xl font-bold text-gray-900">
-                {score}/{questions.length}
+                {score}/{objectiveQuestionsCount}
               </p>
             </div>
             <div className="bg-gray-50 p-6 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">Percentage</p>
               <p
-                className={`text-3xl font-bold ${passed ? "text-green-600" : "text-red-600"}`}
+                className={`text-3xl font-bold ${parseFloat(percentage) >= 50 ? "text-green-600" : "text-yellow-600"}`}
               >
                 {percentage}%
               </p>
@@ -308,9 +330,9 @@ const TakeExam = () => {
             <div className="bg-gray-50 p-6 rounded-lg">
               <p className="text-sm text-gray-600 mb-2">Result</p>
               <p
-                className={`text-3xl font-bold ${passed ? "text-green-600" : "text-red-600"}`}
+                className={`text-3xl font-bold ${parseFloat(percentage) >= 50 ? "text-green-600" : "text-yellow-600"}`}
               >
-                {passed ? "PASSED" : "FAILED"}
+                {hasTheoryQuestions ? (parseFloat(percentage) >= 50 ? "GOOD START" : "PENDING") : (passed ? "PASSED" : "FAILED")}
               </p>
             </div>
           </div>
@@ -455,29 +477,43 @@ const TakeExam = () => {
                     </p>
                   </div>
                   <div className="ml-11 space-y-3">
-                    {q.options.map((opt, i) => (
-                      <label
-                        key={i}
-                        className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
-                          answers[q.id] == i
+                    {(!q.type || q.type === 'objective') ? (
+                      q.options.map((opt, i) => (
+                        <label
+                          key={i}
+                          className={`flex items-center p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${answers[q.id] == i
                             ? "border-blue-500 bg-blue-50"
                             : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name={q.id}
-                          value={i}
-                          checked={answers[q.id] == i}
-                          onChange={() => handleAnswerChange(q.id, i)}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                            }`}
+                        >
+                          <input
+                            type="radio"
+                            name={q.id}
+                            value={i}
+                            checked={answers[q.id] == i}
+                            onChange={() => handleAnswerChange(q.id, i)}
+                            className="h-4 w-4 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="ml-3 text-gray-900 font-medium">
+                            {String.fromCharCode(65 + i)}.
+                          </span>
+                          <span className="ml-2 text-gray-700">{opt}</span>
+                        </label>
+                      ))
+                    ) : (
+                      <div className="mt-2">
+                        <textarea
+                          rows={6}
+                          className="w-full p-4 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 resize-none"
+                          placeholder="Type your answer here..."
+                          value={answers[q.id] || ''}
+                          onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                         />
-                        <span className="ml-3 text-gray-900 font-medium">
-                          {String.fromCharCode(65 + i)}.
-                        </span>
-                        <span className="ml-2 text-gray-700">{opt}</span>
-                      </label>
-                    ))}
+                        <div className="text-right text-sm text-gray-500 mt-1">
+                          {answers[q.id]?.length || 0} characters
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

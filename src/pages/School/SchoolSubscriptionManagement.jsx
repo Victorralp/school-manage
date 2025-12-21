@@ -21,7 +21,8 @@ const SchoolSubscriptionManagement = () => {
     upgradePlan,
     teacherRelationship,
     subjectUsage,
-    studentUsage
+    studentUsage,
+    handlePaymentSuccess: processPaymentContext
   } = useSchoolSubscription();
   const toast = useToast();
   const [showPlanComparison, setShowPlanComparison] = useState(false);
@@ -93,12 +94,22 @@ const SchoolSubscriptionManagement = () => {
     }
   };
 
-  const handlePaymentSuccess = () => {
-    setShowPaymentModal(false);
-    setPaymentDetails(null);
-    setSelectedPlan(null);
-    toast.success('🎉 School plan upgraded successfully! All teachers now have access to new limits.');
-    fetchTransactions();
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      setLoading(true);
+      await processPaymentContext(paymentData);
+
+      setShowPaymentModal(false);
+      setPaymentDetails(null);
+      setSelectedPlan(null);
+      toast.success('🎉 School plan upgraded successfully! All teachers now have access to new limits.');
+      fetchTransactions();
+    } catch (error) {
+      console.error("Payment processing error:", error);
+      toast.error(error.message || 'Payment recorded failed. Please contact support.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handlePaymentError = (error) => {
@@ -288,6 +299,8 @@ const SchoolSubscriptionManagement = () => {
                     Cancel Subscription
                   </Button>
                 )}
+
+
               </div>
             </Card>
 
@@ -429,13 +442,23 @@ const SchoolSubscriptionManagement = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(transaction.amount, transaction.currency)}
+                        {transaction.promoCode && (
+                          <div className="text-xs text-green-600 mt-1">
+                            <span className="font-medium">{transaction.promoCode}</span>
+                            {transaction.discountAmount > 0 && (
+                              <span className="ml-1">
+                                (-{formatCurrency(transaction.discountAmount, transaction.currency)})
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'success'
-                            ? 'bg-green-100 text-green-800'
-                            : transaction.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
+                          ? 'bg-green-100 text-green-800'
+                          : transaction.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-red-100 text-red-800'
                           }`}>
                           {transaction.status}
                         </span>
@@ -450,10 +473,10 @@ const SchoolSubscriptionManagement = () => {
             </div>
           )}
         </Card>
-      </div>
+      </div >
 
       {/* Plan Comparison Modal */}
-      <Modal
+      < Modal
         isOpen={showPlanComparison}
         onClose={() => {
           console.log('Modal close clicked');
@@ -463,18 +486,22 @@ const SchoolSubscriptionManagement = () => {
         size="xl"
       >
         <PlanComparison onSelectPlan={handleSelectPlan} />
-      </Modal>
+      </Modal >
 
       {/* Payment Modal */}
-      {showPaymentModal && paymentDetails && (
-        <PaymentModal
-          isOpen={showPaymentModal}
-          onClose={handlePaymentCancel}
-          onSuccess={handlePaymentSuccess}
-          onError={handlePaymentError}
-          planDetails={paymentDetails}
-        />
-      )}
+      {
+        showPaymentModal && paymentDetails && (
+          <PaymentModal
+            isOpen={showPaymentModal}
+            onClose={handlePaymentCancel}
+            onSuccess={handlePaymentSuccess}
+            onError={handlePaymentError}
+            planDetails={paymentDetails}
+          />
+        )
+      }
+
+
 
       {/* Cancel Subscription Modal */}
       <Modal
@@ -540,7 +567,7 @@ const SchoolSubscriptionManagement = () => {
           </Button>
         </div>
       </Modal>
-    </Layout>
+    </Layout >
   );
 };
 

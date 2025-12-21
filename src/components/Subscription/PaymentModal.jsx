@@ -11,6 +11,7 @@ import {
   isMonnifyTestMode
 } from '../../utils/monnifyConfig';
 import { useAuth } from '../../context/AuthContext';
+import { getPromoCode } from '../../firebase/schoolService';
 
 const PaymentModal = ({
   isOpen,
@@ -43,6 +44,12 @@ const PaymentModal = ({
   const [error, setError] = useState(null);
   const [configValid, setConfigValid] = useState(false);
 
+  // Promo Code State
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState(null);
+  const [appliedPromo, setAppliedPromo] = useState(null);
+
   // Validate Monnify configuration on mount
   useEffect(() => {
     try {
@@ -61,27 +68,88 @@ const PaymentModal = ({
       setSelectedCurrency(currency);
       setIsProcessing(false);
       setError(null);
+      setPromoCode('');
+      setPromoError(null);
+      setAppliedPromo(null);
     }
   }, [isOpen, currency]);
 
-  // Safe amount for display
+  // Handle Promo Code Application
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+
+    try {
+      const promo = await getPromoCode(promoCode.trim().toUpperCase());
+
+      if (!promo) {
+        setPromoError('Invalid or expired promo code');
+        setAppliedPromo(null);
+        return;
+      }
+
+      // Calculate discount
+      let discountAmount = 0;
+      if (promo.type === 'percentage') {
+        discountAmount = (amount * promo.value) / 100;
+      } else if (promo.type === 'fixed') {
+        // Only apply fixed discount if currency matches
+        if (promo.currency === selectedCurrency) {
+          discountAmount = promo.value;
+        } else {
+          setPromoError(`This code is only valid for ${promo.currency}`);
+          setAppliedPromo(null);
+          return;
+        }
+      }
+
+      // Ensure discount doesn't exceed total
+      if (discountAmount > amount) {
+        discountAmount = amount;
+      }
+
+      setAppliedPromo({
+        ...promo,
+        discountAmount
+      });
+      setPromoError(null);
+    } catch (err) {
+      setPromoError('Failed to validate promo code');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoCode('');
+    setPromoError(null);
+  };
+
+  // Safe amount for display and calculation
   const safeAmount = amount || 0;
+  const discountAmount = appliedPromo ? appliedPromo.discountAmount : 0;
+  const finalAmount = Math.max(0, safeAmount - discountAmount);
 
   // Monnify configuration
   const monnifyConfig = {
-    amount: safeAmount, // Monnify uses main currency unit (not kobo)
+    amount: finalAmount, // Monnify uses main currency unit (not kobo)
     currency: selectedCurrency,
     reference: generateTransactionReference(user?.uid, planTier),
     customerFullName: user?.displayName || 'Customer',
     customerEmail: user?.email || '',
     apiKey: getMonnifyApiKey(),
     contractCode: getMonnifyContractCode(),
-    paymentDescription: `${planName} Subscription`,
+    paymentDescription: `${planName} Subscription${appliedPromo ? ` (Promo: ${appliedPromo.code})` : ''}`,
     isTestMode: isMonnifyTestMode(),
     metadata: {
       plan_tier: planTier,
       teacher_id: user?.uid || '',
-      plan_name: planName
+      plan_name: planName,
+      promo_code: appliedPromo?.code || '',
+      discount_amount: discountAmount
     }
   };
 
@@ -98,9 +166,13 @@ const PaymentModal = ({
         message: response.paymentDescription,
         amountPaid: response.amountPaid,
         planTier,
-        amount: parseFloat(response.amountPaid) || safeAmount,
+        amount: finalAmount,
+        originalAmount: safeAmount,
         currency: selectedCurrency,
-        monnifyResponse: response
+        monnifyResponse: response,
+        promoCode: appliedPromo?.code,
+        promoId: appliedPromo?.id,
+        discountAmount: discountAmount
       });
     }
 
@@ -128,6 +200,18 @@ const PaymentModal = ({
 
     setIsProcessing(true);
     setError(null);
+
+    // If amount is 0 (100% discount), handle directly without Monnify
+    if (finalAmount <= 0) {
+      handlePaymentComplete({
+        paymentReference: `FREE-${Date.now()}`,
+        transactionReference: `FREE-${Date.now()}`,
+        paymentStatus: 'PAID',
+        paymentDescription: 'Free Promo Subscription',
+        amountPaid: 0
+      });
+      return;
+    }
 
     try {
       initializePayment(handlePaymentComplete, handlePaymentClose);
@@ -211,7 +295,12 @@ const PaymentModal = ({
           <div className="grid grid-cols-2 gap-2 sm:gap-3">
             <button
               type="button"
-              onClick={() => setSelectedCurrency('NGN')}
+              onClick={() => {
+                setSelectedCurrency('NGN');
+                // Clear applied promo if currency changes to be safe, especially if it was fixed amount
+                setAppliedPromo(null);
+                setPromoCode('');
+              }}
               disabled={isProcessing}
               className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'NGN'
                 ? 'border-blue-600 bg-blue-50 text-blue-700'
@@ -223,7 +312,11 @@ const PaymentModal = ({
             </button>
             <button
               type="button"
-              onClick={() => setSelectedCurrency('USD')}
+              onClick={() => {
+                setSelectedCurrency('USD');
+                setAppliedPromo(null);
+                setPromoCode('');
+              }}
               disabled={isProcessing}
               className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'USD'
                 ? 'border-blue-600 bg-blue-50 text-blue-700'
@@ -236,14 +329,80 @@ const PaymentModal = ({
           </div>
         </div>
 
+        {/* Promo Code Input */}
+        <div className="space-y-2">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700">
+            Promo Code
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={promoCode}
+              onChange={(e) => setPromoCode(e.target.value)}
+              placeholder="Enter code"
+              disabled={isProcessing || !!appliedPromo}
+              className="flex-1 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            />
+            {appliedPromo ? (
+              <Button
+                type="button"
+                variant="danger"
+                size="sm"
+                onClick={handleRemovePromo}
+                disabled={isProcessing}
+              >
+                Remove
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleApplyPromo}
+                disabled={isProcessing || !promoCode.trim() || promoLoading}
+                loading={promoLoading}
+              >
+                Apply
+              </Button>
+            )}
+          </div>
+          {promoError && (
+            <p className="text-xs text-red-600">{promoError}</p>
+          )}
+          {appliedPromo && (
+            <p className="text-xs text-green-600 font-medium">
+              Promo code applied: -{formatCurrency(discountAmount, selectedCurrency)}
+            </p>
+          )}
+        </div>
+
         {/* Payment Amount */}
         <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700 font-medium">Total Amount:</span>
-            <span className="text-2xl font-bold text-gray-900">
-              {formatCurrency(safeAmount, selectedCurrency)}
-            </span>
-          </div>
+          {appliedPromo ? (
+            <div className="space-y-1">
+              <div className="flex justify-between items-center text-gray-500 text-sm">
+                <span>Subtotal:</span>
+                <span className="line-through">{formatCurrency(safeAmount, selectedCurrency)}</span>
+              </div>
+              <div className="flex justify-between items-center text-green-600 text-sm">
+                <span>Discount:</span>
+                <span>-{formatCurrency(discountAmount, selectedCurrency)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-gray-200 pt-2 mt-2">
+                <span className="text-gray-700 font-medium">Total Amount:</span>
+                <span className="text-2xl font-bold text-gray-900">
+                  {formatCurrency(finalAmount, selectedCurrency)}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700 font-medium">Total Amount:</span>
+              <span className="text-2xl font-bold text-gray-900">
+                {formatCurrency(safeAmount, selectedCurrency)}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -258,7 +417,7 @@ const PaymentModal = ({
             Cancel
           </Button>
 
-          {configValid ? (
+          {configValid || finalAmount <= 0 ? (
             <Button
               variant="primary"
               fullWidth
@@ -267,7 +426,7 @@ const PaymentModal = ({
               size="md"
               className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
             >
-              {isProcessing ? 'Processing...' : `Pay ${formatCurrency(safeAmount, selectedCurrency)}`}
+              {isProcessing ? 'Processing...' : `Pay ${formatCurrency(finalAmount, selectedCurrency)}`}
             </Button>
           ) : (
             <Button

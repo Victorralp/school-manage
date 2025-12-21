@@ -3,11 +3,11 @@
  * Handles all database operations for schools, teachers, and subscriptions
  */
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   collection,
   query,
   where,
@@ -18,7 +18,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { db } from './config';
-import { 
+import {
   createSchoolDocument,
   createTeacherSchoolDocument,
   createTransactionDocument,
@@ -42,19 +42,19 @@ const CONFIG_COLLECTION = 'config';
  */
 export const createSchool = async (schoolName, adminUserId, planTier = PLAN_TIERS.FREE) => {
   const batch = writeBatch(db);
-  
+
   // Create school document
   const schoolRef = doc(collection(db, SCHOOLS_COLLECTION));
   const schoolData = createSchoolDocument(schoolName, adminUserId, planTier);
   batch.set(schoolRef, schoolData);
-  
+
   // Create teacher-school relationship for admin
   const teacherRef = doc(db, TEACHERS_COLLECTION, adminUserId);
   const teacherData = createTeacherSchoolDocument(adminUserId, schoolRef.id, SCHOOL_ROLES.ADMIN);
   batch.set(teacherRef, teacherData);
-  
+
   await batch.commit();
-  
+
   return schoolRef.id;
 };
 
@@ -66,11 +66,11 @@ export const createSchool = async (schoolName, adminUserId, planTier = PLAN_TIER
 export const getSchool = async (schoolId) => {
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
   const schoolDoc = await getDoc(schoolRef);
-  
+
   if (schoolDoc.exists()) {
     return { id: schoolDoc.id, ...schoolDoc.data() };
   }
-  
+
   return null;
 };
 
@@ -82,11 +82,11 @@ export const getSchool = async (schoolId) => {
 export const getSchoolByTeacherId = async (teacherId) => {
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   const teacherDoc = await getDoc(teacherRef);
-  
+
   if (!teacherDoc.exists()) {
     return null;
   }
-  
+
   const teacherData = teacherDoc.data();
   return await getSchool(teacherData.schoolId);
 };
@@ -99,7 +99,7 @@ export const getSchoolByTeacherId = async (teacherId) => {
  */
 export const subscribeToSchool = (schoolId, callback) => {
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
-  
+
   return onSnapshot(schoolRef, (doc) => {
     if (doc.exists()) {
       callback({ id: doc.id, ...doc.data() });
@@ -121,15 +121,15 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
   // First try to get from teachers collection
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   const teacherDoc = await getDoc(teacherRef);
-  
+
   if (teacherDoc.exists()) {
     return { id: teacherDoc.id, ...teacherDoc.data() };
   }
-  
+
   // Fallback: Get schoolId from users collection
   const userRef = doc(db, 'users', teacherId);
   const userDoc = await getDoc(userRef);
-  
+
   if (userDoc.exists()) {
     const userData = userDoc.data();
     if (userData.schoolId) {
@@ -143,7 +143,7 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
       };
     }
   }
-  
+
   return null;
 };
 
@@ -156,19 +156,19 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
  */
 export const addTeacherToSchool = async (teacherId, schoolId, role = SCHOOL_ROLES.TEACHER) => {
   const batch = writeBatch(db);
-  
+
   // Create teacher-school relationship
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   const teacherData = createTeacherSchoolDocument(teacherId, schoolId, role);
   batch.set(teacherRef, teacherData);
-  
+
   // Increment teacher count in school
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
   batch.update(schoolRef, {
     teacherCount: increment(1),
     updatedAt: serverTimestamp()
   });
-  
+
   await batch.commit();
 };
 
@@ -179,16 +179,16 @@ export const addTeacherToSchool = async (teacherId, schoolId, role = SCHOOL_ROLE
  */
 export const removeTeacherFromSchool = async (teacherId) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
-  
+
   if (!teacherRelationship) {
     throw new Error('Teacher not found in any school');
   }
-  
+
   const batch = writeBatch(db);
-  
+
   // Get teacher's current usage
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
-  
+
   // Decrement school's usage by teacher's usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
   batch.update(schoolRef, {
@@ -197,10 +197,10 @@ export const removeTeacherFromSchool = async (teacherId) => {
     teacherCount: increment(-1),
     updatedAt: serverTimestamp()
   });
-  
+
   // Delete teacher-school relationship
   batch.delete(teacherRef);
-  
+
   await batch.commit();
 };
 
@@ -212,13 +212,13 @@ export const removeTeacherFromSchool = async (teacherId) => {
  */
 export const incrementUsage = async (teacherId, type) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
-  
+
   if (!teacherRelationship) {
     throw new Error('Teacher not found in any school');
   }
-  
+
   const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-  
+
   // Update teacher's individual usage using set with merge to handle non-existent docs
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   await setDoc(teacherRef, {
@@ -228,7 +228,7 @@ export const incrementUsage = async (teacherId, type) => {
     [field]: increment(1),
     updatedAt: serverTimestamp()
   }, { merge: true });
-  
+
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
   await setDoc(schoolRef, {
@@ -245,13 +245,13 @@ export const incrementUsage = async (teacherId, type) => {
  */
 export const decrementUsage = async (teacherId, type) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
-  
+
   if (!teacherRelationship) {
     throw new Error('Teacher not found in any school');
   }
-  
+
   const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-  
+
   // Update teacher's individual usage using set with merge
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
   await setDoc(teacherRef, {
@@ -261,7 +261,7 @@ export const decrementUsage = async (teacherId, type) => {
     [field]: increment(-1),
     updatedAt: serverTimestamp()
   }, { merge: true });
-  
+
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
   await setDoc(schoolRef, {
@@ -279,14 +279,14 @@ export const decrementUsage = async (teacherId, type) => {
  */
 export const updateSchoolPlan = async (schoolId, planTier, paymentData = {}) => {
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
-  
+
   const updateData = {
     planTier,
     status: SUBSCRIPTION_STATUS.ACTIVE,
     updatedAt: serverTimestamp(),
     ...paymentData
   };
-  
+
   await updateDoc(schoolRef, updateData);
 };
 
@@ -301,7 +301,7 @@ export const createTransaction = async (transactionData) => {
     ...transactionData,
     createdAt: serverTimestamp()
   });
-  
+
   return transactionRef.id;
 };
 
@@ -314,7 +314,7 @@ export const createTransaction = async (transactionData) => {
  */
 export const updateTransaction = async (transactionId, status, paystackResponse = null) => {
   const transactionRef = doc(db, TRANSACTIONS_COLLECTION, transactionId);
-  
+
   await updateDoc(transactionRef, {
     status,
     paystackResponse,
@@ -332,7 +332,7 @@ export const getTransactionHistory = async (schoolId) => {
     collection(db, TRANSACTIONS_COLLECTION),
     where('schoolId', '==', schoolId)
   );
-  
+
   const querySnapshot = await getDocs(transactionsQuery);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
@@ -347,7 +347,7 @@ export const getSchoolTeachers = async (schoolId) => {
     collection(db, TEACHERS_COLLECTION),
     where('schoolId', '==', schoolId)
   );
-  
+
   const querySnapshot = await getDocs(teachersQuery);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };
@@ -369,11 +369,11 @@ export const isSchoolAdmin = async (teacherId) => {
 export const getPlanConfig = async () => {
   const configRef = doc(db, CONFIG_COLLECTION, 'plans');
   const configDoc = await getDoc(configRef);
-  
+
   if (configDoc.exists()) {
     return configDoc.data();
   }
-  
+
   return null;
 };
 
@@ -385,4 +385,83 @@ export const getPlanConfig = async () => {
 export const initializePlanConfig = async (planConfig) => {
   const configRef = doc(db, CONFIG_COLLECTION, 'plans');
   await setDoc(configRef, planConfig);
+};
+
+// Promo Code System
+
+/**
+ * Get promo code details
+ * @param {string} code - The promo code to validate
+ * @returns {Promise<object|null>} - Promo code document or null
+ */
+export const getPromoCode = async (code) => {
+  try {
+    const q = query(
+      collection(db, 'promos'),
+      where('code', '==', code),
+      where('status', '==', 'active')
+    );
+
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return null;
+    }
+
+    const promoDoc = querySnapshot.docs[0];
+    const promoData = promoDoc.data();
+
+    // Check expiry
+    if (promoData.expiryDate && promoData.expiryDate.toDate() < new Date()) {
+      return null;
+    }
+
+    // Check usage limits
+    if (promoData.maxUses && promoData.currentUses >= promoData.maxUses) {
+      return null;
+    }
+
+    return { id: promoDoc.id, ...promoData };
+  } catch (error) {
+    console.error('Error fetching promo code:', error);
+    return null;
+  }
+};
+
+/**
+ * Create a new promo code (Admin only)
+ * @param {object} promoData - Promo code data
+ * @returns {Promise<string>} - Promo code ID
+ */
+export const createPromoCode = async (promoData) => {
+  const promoRef = doc(collection(db, 'promos'));
+  await setDoc(promoRef, {
+    ...promoData,
+    status: 'active',
+    currentUses: 0,
+    createdAt: serverTimestamp()
+  });
+  return promoRef.id;
+};
+
+/**
+ * Increment promo code usage
+ * @param {string} promoCodeId - The promo code ID
+ * @returns {Promise<void>}
+ */
+export const incrementPromoUsage = async (promoCodeId) => {
+  const promoRef = doc(db, 'promos', promoCodeId);
+  await updateDoc(promoRef, {
+    currentUses: increment(1)
+  });
+};
+
+/**
+ * Get all promo codes (Admin management)
+ * @returns {Promise<array>} - List of promo codes
+ */
+export const getPromos = async () => {
+  const q = query(collection(db, 'promos'));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 };

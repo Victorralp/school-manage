@@ -78,6 +78,7 @@ const TeacherDashboard = () => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState({
     questionText: "",
+    type: "objective",
     options: ["", "", "", ""],
     correctOption: 0,
   });
@@ -204,7 +205,7 @@ const TeacherDashboard = () => {
       return;
     }
 
-    if (currentQuestion.options.some((opt) => !opt.trim())) {
+    if (currentQuestion.type === 'objective' && currentQuestion.options.some((opt) => !opt.trim())) {
       showAlert("error", "Please fill all options");
       return;
     }
@@ -218,6 +219,7 @@ const TeacherDashboard = () => {
     setQuestions([...questions, { ...currentQuestion }]);
     setCurrentQuestion({
       questionText: "",
+      type: "objective",
       options: ["", "", "", ""],
       correctOption: 0,
     });
@@ -309,6 +311,7 @@ const TeacherDashboard = () => {
     setQuestions([]);
     setCurrentQuestion({
       questionText: "",
+      type: "objective",
       options: ["", "", "", ""],
       correctOption: 0,
     });
@@ -773,8 +776,8 @@ const TeacherDashboard = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`${activeTab === tab
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  ? "border-blue-500 text-blue-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                   } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors duration-200`}
               >
                 {tab}
@@ -918,13 +921,13 @@ const TeacherDashboard = () => {
                   </span>
                 </div>
                 <div className={`w-full rounded-full h-3 ${subjectUsage.percentage >= 100 ? 'bg-red-100' :
-                    subjectUsage.percentage >= 80 ? 'bg-yellow-100' :
-                      'bg-green-100'
+                  subjectUsage.percentage >= 80 ? 'bg-yellow-100' :
+                    'bg-green-100'
                   }`}>
                   <div
                     className={`h-3 rounded-full transition-all duration-300 ${subjectUsage.percentage >= 100 ? 'bg-red-500' :
-                        subjectUsage.percentage >= 80 ? 'bg-yellow-500' :
-                          'bg-green-500'
+                      subjectUsage.percentage >= 80 ? 'bg-yellow-500' :
+                        'bg-green-500'
                       }`}
                     style={{ width: `${Math.min(subjectUsage.percentage, 100)}%` }}
                   ></div>
@@ -1083,8 +1086,8 @@ const TeacherDashboard = () => {
                 render: (row) => (
                   <span
                     className={`px-2 py-1 text-xs font-semibold rounded-full ${row.status === "active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-gray-100 text-gray-800"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
                       }`}
                   >
                     {row.status}
@@ -1262,8 +1265,8 @@ const TeacherDashboard = () => {
                         type="button"
                         onClick={() => setSelectedSubject(subject)}
                         className={`p-4 border-2 rounded-lg text-left transition-all ${selectedSubject?.id === subject.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-300'
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-300'
                           }`}
                       >
                         <div className="font-semibold text-gray-900">{subject.name}</div>
@@ -1363,6 +1366,37 @@ const TeacherDashboard = () => {
                 </h5>
               </div>
 
+              {/* Question Type Selector */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Question Type
+                </label>
+                <div className="flex space-x-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      className="form-radio text-blue-600"
+                      name="questionType"
+                      value="objective"
+                      checked={currentQuestion.type === 'objective'}
+                      onChange={(e) => handleQuestionChange('type', 'objective')}
+                    />
+                    <span className="ml-2">Objective (Multiple Choice)</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      className="form-radio text-blue-600"
+                      name="questionType"
+                      value="theory"
+                      checked={currentQuestion.type === 'theory'}
+                      onChange={(e) => handleQuestionChange('type', 'theory')}
+                    />
+                    <span className="ml-2">Theory (Essay/Text)</span>
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="block text-sm font-medium text-gray-700">
@@ -1444,63 +1478,69 @@ const TeacherDashboard = () => {
               </div>
 
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Answer Options
-                </label>
-                <div className="space-y-3">
-                  {currentQuestion.options.map((option, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center font-semibold text-gray-700 border-2 border-gray-300">
-                        {String.fromCharCode(65 + index)}
-                      </div>
-                      <Input
-                        value={option}
-                        onChange={(e) => handleOptionChange(index, e.target.value)}
-                        placeholder={`Enter option ${String.fromCharCode(65 + index)}`}
-                        className="flex-1"
-                      />
+                {currentQuestion.type === 'objective' && (
+                  <>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Answer Options
+                    </label>
+                    <div className="space-y-3">
+                      {currentQuestion.options.map((option, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-white rounded-lg flex items-center justify-center font-semibold text-gray-700 border-2 border-gray-300">
+                            {String.fromCharCode(65 + index)}
+                          </div>
+                          <Input
+                            value={option}
+                            onChange={(e) => handleOptionChange(index, e.target.value)}
+                            placeholder={`Enter option ${String.fromCharCode(65 + index)}`}
+                            className="flex-1"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
               </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Select Correct Answer
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {currentQuestion.options.map((option, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => handleQuestionChange("correctOption", index)}
-                      className={`p-3 rounded-lg border-2 transition-all ${currentQuestion.correctOption === index
+              {currentQuestion.type === 'objective' && (
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Correct Answer
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {currentQuestion.options.map((option, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleQuestionChange("correctOption", index)}
+                        className={`p-3 rounded-lg border-2 transition-all ${currentQuestion.correctOption === index
                           ? "border-green-500 bg-green-50 text-green-700 font-semibold"
                           : "border-gray-300 bg-white text-gray-700 hover:border-gray-400"
-                        }`}
-                    >
-                      <div className="text-center">
-                        <div className="text-lg font-bold">
-                          {String.fromCharCode(65 + index)}
+                          }`}
+                      >
+                        <div className="text-center">
+                          <div className="text-lg font-bold">
+                            {String.fromCharCode(65 + index)}
+                          </div>
+                          {currentQuestion.correctOption === index && (
+                            <svg
+                              className="h-4 w-4 mx-auto mt-1 text-green-600"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
                         </div>
-                        {currentQuestion.correctOption === index && (
-                          <svg
-                            className="h-4 w-4 mx-auto mt-1 text-green-600"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="mt-6 flex justify-between items-center">
                 <p className="text-sm text-gray-600">
@@ -1554,42 +1594,56 @@ const TeacherDashboard = () => {
                       <div className="flex justify-between items-start gap-4">
                         <div className="flex-1">
                           <div className="flex items-start gap-3 mb-3">
-                            <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold text-sm">
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm text-white ${q.type === 'theory' ? 'bg-purple-600' : 'bg-blue-600'}`}>
                               {index + 1}
                             </div>
-                            <p className="font-medium text-gray-900 flex-1">
-                              {q.questionText}
-                            </p>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${q.type === 'theory' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                  {q.type === 'theory' ? 'Theory' : 'Objective'}
+                                </span>
+                              </div>
+                              <p className="font-medium text-gray-900">
+                                {q.questionText}
+                              </p>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-11">
-                            {q.options.map((opt, i) => (
-                              <div
-                                key={i}
-                                className={`flex items-center p-2 rounded-lg text-sm ${i === q.correctOption
+                          {q.type === 'objective' && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-11">
+                              {q.options.map((opt, i) => (
+                                <div
+                                  key={i}
+                                  className={`flex items-center p-2 rounded-lg text-sm ${i === q.correctOption
                                     ? "bg-green-50 border-2 border-green-500 text-green-900 font-semibold"
                                     : "bg-gray-50 border border-gray-200 text-gray-700"
-                                  }`}
-                              >
-                                <span className="font-bold mr-2">
-                                  {String.fromCharCode(65 + i)}.
-                                </span>
-                                <span className="flex-1">{opt}</span>
-                                {i === q.correctOption && (
-                                  <svg
-                                    className="h-4 w-4 text-green-600 ml-2"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                )}
-                              </div>
-                            ))}
-                          </div>
+                                    }`}
+                                >
+                                  <span className="font-bold mr-2">
+                                    {String.fromCharCode(65 + i)}.
+                                  </span>
+                                  <span className="flex-1">{opt}</span>
+                                  {i === q.correctOption && (
+                                    <svg
+                                      className="h-4 w-4 text-green-600 ml-2"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === 'theory' && (
+                            <div className="ml-11 text-sm text-gray-500 italic block border-l-2 border-purple-200 pl-3 py-2 bg-purple-50 rounded-r">
+                              Student will provide a text answer for this question.
+                            </div>
+                          )}
                         </div>
                         <Button
                           variant="danger"
@@ -1729,14 +1783,14 @@ const TeacherDashboard = () => {
                         <div
                           key={i}
                           className={`flex items-center p-2 rounded ${i === q.correctOption
-                              ? "bg-green-100 border border-green-300"
-                              : "bg-white border border-gray-200"
+                            ? "bg-green-100 border border-green-300"
+                            : "bg-white border border-gray-200"
                             }`}
                         >
                           <span
                             className={`font-semibold mr-2 ${i === q.correctOption
-                                ? "text-green-700"
-                                : "text-gray-700"
+                              ? "text-green-700"
+                              : "text-gray-700"
                               }`}
                           >
                             {String.fromCharCode(65 + i)}.
@@ -1865,47 +1919,49 @@ const TeacherDashboard = () => {
       />
 
       {/* Student ID Display Modal */}
-      {registeredStudentId && (
-        <Modal
-          isOpen={!!registeredStudentId}
-          onClose={() => setRegisteredStudentId(null)}
-          title="Student Registered Successfully!"
-          size="md"
-        >
-          <div className="text-center space-y-4">
-            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
-              <svg className="h-16 w-16 text-green-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <p className="text-sm text-gray-600 mb-2">Student ID</p>
-              <code className="text-3xl font-bold text-blue-600 font-mono">
-                {registeredStudentId}
-              </code>
-            </div>
+      {
+        registeredStudentId && (
+          <Modal
+            isOpen={!!registeredStudentId}
+            onClose={() => setRegisteredStudentId(null)}
+            title="Student Registered Successfully!"
+            size="md"
+          >
+            <div className="text-center space-y-4">
+              <div className="bg-green-50 border-2 border-green-200 rounded-lg p-6">
+                <svg className="h-16 w-16 text-green-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-sm text-gray-600 mb-2">Student ID</p>
+                <code className="text-3xl font-bold text-blue-600 font-mono">
+                  {registeredStudentId}
+                </code>
+              </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>Important:</strong> Please share this Student ID with the student.
-                They will use it to login to the system.
-              </p>
-            </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Important:</strong> Please share this Student ID with the student.
+                  They will use it to login to the system.
+                </p>
+              </div>
 
-            <Button
-              variant="primary"
-              onClick={() => {
-                navigator.clipboard.writeText(registeredStudentId);
-                showAlert("success", "Student ID copied to clipboard!");
-              }}
-            >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              Copy Student ID
-            </Button>
-          </div>
-        </Modal>
-      )}
-    </Layout>
+              <Button
+                variant="primary"
+                onClick={() => {
+                  navigator.clipboard.writeText(registeredStudentId);
+                  showAlert("success", "Student ID copied to clipboard!");
+                }}
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Copy Student ID
+              </Button>
+            </div>
+          </Modal>
+        )
+      }
+    </Layout >
   );
 };
 

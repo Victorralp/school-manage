@@ -15,7 +15,7 @@ import StudentDashboard from "./pages/Student/StudentDashboard";
 import TakeExam from "./pages/Student/Exam/TakeExam";
 import Login from "./pages/Login";
 import AdminSetup from "./pages/AdminSetup";
-import TestFirebase from "./pages/TestFirebase";
+
 import CheckAccounts from "./pages/CheckAccounts";
 import Welcome from "./pages/Welcome";
 import JoinSchoolPage from "./pages/JoinSchoolPage";
@@ -63,7 +63,7 @@ function AppContent() {
       <Route path="/login" element={<Login />} />
       <Route path="/join-school" element={<JoinSchoolPage />} />
       <Route path="/admin-setup" element={<AdminSetup />} />
-      <Route path="/test-firebase" element={<TestFirebase />} />
+
       <Route path="/check-accounts" element={<CheckAccounts />} />
 
       {/* Admin Routes */}
