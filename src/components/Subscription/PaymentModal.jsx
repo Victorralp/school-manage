@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useMonnifyPayment } from 'react-monnify';
-import Modal from '../Modal';
-import Button from '../Button';
+import { useState, useEffect } from "react";
+import { useMonnifyPayment } from "react-monnify";
+import Modal from "../Modal";
+import Button from "../Button";
 import {
   validateMonnifyConfig,
   formatCurrency,
   generateTransactionReference,
   getMonnifyApiKey,
   getMonnifyContractCode,
-  isMonnifyTestMode
-} from '../../utils/monnifyConfig';
-import { useAuth } from '../../context/AuthContext';
-import { getPromoCode } from '../../firebase/schoolService';
+  isMonnifyTestMode,
+} from "../../utils/monnifyConfig";
+import { useAuth } from "../../context/AuthContext";
+import { getPromoCode } from "../../firebase/schoolService";
 
 const PaymentModal = ({
   isOpen,
@@ -21,20 +21,20 @@ const PaymentModal = ({
   planTier: propPlanTier,
   planName: propPlanName,
   amount: propAmount,
-  currency: propCurrency = 'NGN',
+  currency: propCurrency = "NGN",
   features: propFeatures = [],
   subjectLimit: propSubjectLimit,
   studentLimit: propStudentLimit,
   onSuccess,
-  onError
+  onError,
 }) => {
   const { user } = useAuth();
 
   // Extract values from planDetails if provided, otherwise use individual props
   const planTier = planDetails?.planTier ?? propPlanTier;
-  const planName = planDetails?.planName ?? propPlanName ?? 'Subscription';
+  const planName = planDetails?.planName ?? propPlanName ?? "Subscription";
   const amount = planDetails?.amount ?? propAmount ?? 0;
-  const currency = planDetails?.currency ?? propCurrency ?? 'NGN';
+  const currency = planDetails?.currency ?? propCurrency ?? "NGN";
   const features = planDetails?.features ?? propFeatures ?? [];
   const subjectLimit = planDetails?.subjectLimit ?? propSubjectLimit ?? 0;
   const studentLimit = planDetails?.studentLimit ?? propStudentLimit ?? 0;
@@ -45,7 +45,7 @@ const PaymentModal = ({
   const [configValid, setConfigValid] = useState(false);
 
   // Promo Code State
-  const [promoCode, setPromoCode] = useState('');
+  const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState(null);
   const [appliedPromo, setAppliedPromo] = useState(null);
@@ -68,7 +68,7 @@ const PaymentModal = ({
       setSelectedCurrency(currency);
       setIsProcessing(false);
       setError(null);
-      setPromoCode('');
+      setPromoCode("");
       setPromoError(null);
       setAppliedPromo(null);
     }
@@ -85,16 +85,16 @@ const PaymentModal = ({
       const promo = await getPromoCode(promoCode.trim().toUpperCase());
 
       if (!promo) {
-        setPromoError('Invalid or expired promo code');
+        setPromoError("Invalid or expired promo code");
         setAppliedPromo(null);
         return;
       }
 
       // Calculate discount
       let discountAmount = 0;
-      if (promo.type === 'percentage') {
+      if (promo.type === "percentage") {
         discountAmount = (amount * promo.value) / 100;
-      } else if (promo.type === 'fixed') {
+      } else if (promo.type === "fixed") {
         // Only apply fixed discount if currency matches
         if (promo.currency === selectedCurrency) {
           discountAmount = promo.value;
@@ -112,11 +112,11 @@ const PaymentModal = ({
 
       setAppliedPromo({
         ...promo,
-        discountAmount
+        discountAmount,
       });
       setPromoError(null);
     } catch (err) {
-      setPromoError('Failed to validate promo code');
+      setPromoError("Failed to validate promo code");
     } finally {
       setPromoLoading(false);
     }
@@ -124,7 +124,7 @@ const PaymentModal = ({
 
   const handleRemovePromo = () => {
     setAppliedPromo(null);
-    setPromoCode('');
+    setPromoCode("");
     setPromoError(null);
   };
 
@@ -138,19 +138,19 @@ const PaymentModal = ({
     amount: finalAmount, // Monnify uses main currency unit (not kobo)
     currency: selectedCurrency,
     reference: generateTransactionReference(user?.uid, planTier),
-    customerFullName: user?.displayName || 'Customer',
-    customerEmail: user?.email || '',
+    customerFullName: user?.displayName || "Customer",
+    customerEmail: user?.email || "",
     apiKey: getMonnifyApiKey(),
     contractCode: getMonnifyContractCode(),
-    paymentDescription: `${planName} Subscription${appliedPromo ? ` (Promo: ${appliedPromo.code})` : ''}`,
+    paymentDescription: `${planName} Subscription${appliedPromo ? ` (Promo: ${appliedPromo.code})` : ""}`,
     isTestMode: isMonnifyTestMode(),
     metadata: {
       plan_tier: planTier,
-      teacher_id: user?.uid || '',
+      teacher_id: user?.uid || "",
       plan_name: planName,
-      promo_code: appliedPromo?.code || '',
-      discount_amount: discountAmount
-    }
+      promo_code: appliedPromo?.code || "",
+      discount_amount: discountAmount,
+    },
   };
 
   // Handle successful payment
@@ -166,13 +166,16 @@ const PaymentModal = ({
         message: response.paymentDescription,
         amountPaid: response.amountPaid,
         planTier,
+        planName,
         amount: finalAmount,
         originalAmount: safeAmount,
         currency: selectedCurrency,
         monnifyResponse: response,
         promoCode: appliedPromo?.code,
         promoId: appliedPromo?.id,
-        discountAmount: discountAmount
+        discountAmount: discountAmount,
+        subjectLimit,
+        studentLimit,
       });
     }
 
@@ -183,8 +186,8 @@ const PaymentModal = ({
   const handlePaymentClose = (data) => {
     setIsProcessing(false);
     // Check if user cancelled
-    if (data?.paymentStatus === 'USER_CANCELLED') {
-      console.log('User cancelled the payment');
+    if (data?.paymentStatus === "USER_CANCELLED") {
+      console.log("User cancelled the payment");
     }
   };
 
@@ -194,7 +197,7 @@ const PaymentModal = ({
   // Handle pay button click
   const handlePayClick = () => {
     if (!user?.email) {
-      setError('Please ensure you are logged in with a valid email address.');
+      setError("Please ensure you are logged in with a valid email address.");
       return;
     }
 
@@ -206,9 +209,9 @@ const PaymentModal = ({
       handlePaymentComplete({
         paymentReference: `FREE-${Date.now()}`,
         transactionReference: `FREE-${Date.now()}`,
-        paymentStatus: 'PAID',
-        paymentDescription: 'Free Promo Subscription',
-        amountPaid: 0
+        paymentStatus: "PAID",
+        paymentDescription: "Free Promo Subscription",
+        amountPaid: 0,
       });
       return;
     }
@@ -217,7 +220,8 @@ const PaymentModal = ({
       initializePayment(handlePaymentComplete, handlePaymentClose);
     } catch (err) {
       setIsProcessing(false);
-      const errorMessage = err?.message || 'Payment initialization failed. Please try again.';
+      const errorMessage =
+        err?.message || "Payment initialization failed. Please try again.";
       setError(errorMessage);
 
       if (onError) {
@@ -240,11 +244,22 @@ const PaymentModal = ({
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex items-start">
-              <svg className="h-5 w-5 text-red-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              <svg
+                className="h-5 w-5 text-red-400 mt-0.5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                  clipRule="evenodd"
+                />
               </svg>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Payment Error</h3>
+                <h3 className="text-sm font-medium text-red-800">
+                  Payment Error
+                </h3>
                 <p className="text-sm text-red-700 mt-1">{error}</p>
               </div>
             </div>
@@ -253,7 +268,9 @@ const PaymentModal = ({
 
         {/* Plan Details */}
         <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
-          <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{planName}</h4>
+          <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+            {planName}
+          </h4>
           <div className="space-y-2 text-xs sm:text-sm text-gray-700">
             <div className="flex justify-between">
               <span>Subject Limit:</span>
@@ -273,12 +290,26 @@ const PaymentModal = ({
         {/* Features List */}
         {features && features.length > 0 && (
           <div>
-            <h5 className="text-sm font-semibold text-gray-900 mb-2">Features Included:</h5>
+            <h5 className="text-sm font-semibold text-gray-900 mb-2">
+              Features Included:
+            </h5>
             <ul className="space-y-2">
               {features.map((feature, index) => (
-                <li key={index} className="flex items-start text-sm text-gray-700">
-                  <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                <li
+                  key={index}
+                  className="flex items-start text-sm text-gray-700"
+                >
+                  <svg
+                    className="h-5 w-5 text-green-500 mr-2 flex-shrink-0"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                   {feature}
                 </li>
@@ -296,35 +327,43 @@ const PaymentModal = ({
             <button
               type="button"
               onClick={() => {
-                setSelectedCurrency('NGN');
+                setSelectedCurrency("NGN");
                 // Clear applied promo if currency changes to be safe, especially if it was fixed amount
                 setAppliedPromo(null);
-                setPromoCode('');
+                setPromoCode("");
               }}
               disabled={isProcessing}
-              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'NGN'
-                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                : 'border-gray-300 hover:border-gray-400'
-                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${
+                selectedCurrency === "NGN"
+                  ? "border-blue-600 bg-blue-50 text-blue-700"
+                  : "border-gray-300 hover:border-gray-400"
+              } ${isProcessing ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
-              <div className="text-xs sm:text-sm font-semibold">Nigerian Naira</div>
-              <div className="text-base sm:text-lg font-bold mt-1">₦{safeAmount.toLocaleString()}</div>
+              <div className="text-xs sm:text-sm font-semibold">
+                Nigerian Naira
+              </div>
+              <div className="text-base sm:text-lg font-bold mt-1">
+                ₦{safeAmount.toLocaleString()}
+              </div>
             </button>
             <button
               type="button"
               onClick={() => {
-                setSelectedCurrency('USD');
+                setSelectedCurrency("USD");
                 setAppliedPromo(null);
-                setPromoCode('');
+                setPromoCode("");
               }}
               disabled={isProcessing}
-              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${selectedCurrency === 'USD'
-                ? 'border-blue-600 bg-blue-50 text-blue-700'
-                : 'border-gray-300 hover:border-gray-400'
-                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              className={`p-2 sm:p-3 border-2 rounded-lg text-center transition-all ${
+                selectedCurrency === "USD"
+                  ? "border-blue-600 bg-blue-50 text-blue-700"
+                  : "border-gray-300 hover:border-gray-400"
+              } ${isProcessing ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <div className="text-xs sm:text-sm font-semibold">US Dollar</div>
-              <div className="text-base sm:text-lg font-bold mt-1">${safeAmount.toLocaleString()}</div>
+              <div className="text-base sm:text-lg font-bold mt-1">
+                ${safeAmount.toLocaleString()}
+              </div>
             </button>
           </div>
         </div>
@@ -366,12 +405,11 @@ const PaymentModal = ({
               </Button>
             )}
           </div>
-          {promoError && (
-            <p className="text-xs text-red-600">{promoError}</p>
-          )}
+          {promoError && <p className="text-xs text-red-600">{promoError}</p>}
           {appliedPromo && (
             <p className="text-xs text-green-600 font-medium">
-              Promo code applied: -{formatCurrency(discountAmount, selectedCurrency)}
+              Promo code applied: -
+              {formatCurrency(discountAmount, selectedCurrency)}
             </p>
           )}
         </div>
@@ -382,7 +420,9 @@ const PaymentModal = ({
             <div className="space-y-1">
               <div className="flex justify-between items-center text-gray-500 text-sm">
                 <span>Subtotal:</span>
-                <span className="line-through">{formatCurrency(safeAmount, selectedCurrency)}</span>
+                <span className="line-through">
+                  {formatCurrency(safeAmount, selectedCurrency)}
+                </span>
               </div>
               <div className="flex justify-between items-center text-green-600 text-sm">
                 <span>Discount:</span>
@@ -426,15 +466,12 @@ const PaymentModal = ({
               size="md"
               className="bg-green-600 hover:bg-green-700 focus:ring-green-500"
             >
-              {isProcessing ? 'Processing...' : `Pay ${formatCurrency(finalAmount, selectedCurrency)}`}
+              {isProcessing
+                ? "Processing..."
+                : `Pay ${formatCurrency(finalAmount, selectedCurrency)}`}
             </Button>
           ) : (
-            <Button
-              variant="primary"
-              fullWidth
-              disabled
-              size="md"
-            >
+            <Button variant="primary" fullWidth disabled size="md">
               Payment Unavailable
             </Button>
           )}
@@ -451,9 +488,25 @@ const PaymentModal = ({
         {isProcessing && (
           <div className="text-center text-sm text-gray-600">
             <div className="flex items-center justify-center">
-              <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                className="animate-spin h-4 w-4 mr-2"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               Processing payment...
             </div>
@@ -462,7 +515,8 @@ const PaymentModal = ({
 
         {/* Security Notice */}
         <p className="text-xs text-gray-500 text-center">
-          Payments are securely processed by Monnify (Moniepoint). Your payment information is encrypted and secure.
+          Payments are securely processed by Monnify (Moniepoint). Your payment
+          information is encrypted and secure.
         </p>
       </div>
     </Modal>

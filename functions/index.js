@@ -15,7 +15,9 @@ exports.checkExpiringSubscriptions = functions.pubsub
   .onRun(async (context) => {
     try {
       const now = new Date();
-      const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const sevenDaysFromNow = new Date(
+        now.getTime() + 7 * 24 * 60 * 60 * 1000,
+      );
 
       // Query subscriptions expiring within 7 days
       const expiringSubscriptions = await db
@@ -33,9 +35,7 @@ exports.checkExpiringSubscriptions = functions.pubsub
         const teacherId = doc.id;
 
         // Send renewal reminder email
-        renewalPromises.push(
-          sendRenewalReminder(teacherId, subscription)
-        );
+        renewalPromises.push(sendRenewalReminder(teacherId, subscription));
       });
 
       await Promise.all(renewalPromises);
@@ -74,9 +74,7 @@ exports.processSubscriptionRenewals = functions.pubsub
         const teacherId = doc.id;
 
         // Attempt automatic renewal
-        renewalPromises.push(
-          attemptAutomaticRenewal(teacherId, subscription)
-        );
+        renewalPromises.push(attemptAutomaticRenewal(teacherId, subscription));
       });
 
       await Promise.all(renewalPromises);
@@ -103,7 +101,7 @@ async function sendRenewalReminder(teacherId, subscription) {
 
     const teacher = teacherDoc.data();
     const daysUntilExpiry = Math.ceil(
-      (subscription.expiryDate.toDate() - new Date()) / (1000 * 60 * 60 * 24)
+      (subscription.expiryDate.toDate() - new Date()) / (1000 * 60 * 60 * 24),
     );
 
     // Create email notification document
@@ -135,21 +133,26 @@ async function attemptAutomaticRenewal(teacherId, subscription) {
     const subscriptionRef = db.collection("subscriptions").doc(teacherId);
 
     // Check if we have stored payment method
-    if (!subscription.paystackCustomerCode || !subscription.paystackSubscriptionCode) {
-      console.log(`No stored payment method for ${teacherId}, activating grace period`);
-      
+    if (
+      !subscription.monnifyCustomerEmail ||
+      !subscription.monnifyTransactionReference
+    ) {
+      console.log(
+        `No stored payment method for ${teacherId}, activating grace period`,
+      );
+
       // Activate grace period
       await activateGracePeriod(teacherId, subscription);
       return;
     }
 
-    // Attempt to charge using Paystack subscription
-    // Note: This requires Paystack API integration
+    // Attempt to charge using Monnify
+    // Note: This requires Monnify API integration
     // For now, we'll simulate the renewal attempt
-    const renewalSuccess = await chargePaystackSubscription(
-      subscription.paystackSubscriptionCode,
+    const renewalSuccess = await chargeMonnifySubscription(
+      subscription.monnifyTransactionReference,
       subscription.amount,
-      subscription.currency
+      subscription.currency,
     );
 
     if (renewalSuccess) {
@@ -180,11 +183,15 @@ async function attemptAutomaticRenewal(teacherId, subscription) {
 }
 
 /**
- * Charge Paystack subscription
- * This is a placeholder - actual implementation requires Paystack API
+ * Charge Monnify subscription
+ * This is a placeholder - actual implementation requires Monnify API
  */
-async function chargePaystackSubscription(subscriptionCode, amount, currency) {
-  // TODO: Implement actual Paystack API call
+async function chargeMonnifySubscription(
+  transactionReference,
+  amount,
+  currency,
+) {
+  // TODO: Implement actual Monnify API call
   // For now, return false to simulate failed renewal
   return false;
 }
@@ -244,7 +251,11 @@ async function sendRenewalSuccessNotification(teacherId, subscription) {
 /**
  * Send grace period notification
  */
-async function sendGracePeriodNotification(teacherId, subscription, gracePeriodEnd) {
+async function sendGracePeriodNotification(
+  teacherId,
+  subscription,
+  gracePeriodEnd,
+) {
   try {
     const teacherDoc = await db.collection("users").doc(teacherId).get();
     if (!teacherDoc.exists) return;
@@ -298,14 +309,14 @@ exports.processGracePeriodExpirations = functions.pubsub
         const teacherId = doc.id;
 
         // Downgrade to Free plan
-        downgradePromises.push(
-          downgradeToFreePlan(teacherId, subscription)
-        );
+        downgradePromises.push(downgradeToFreePlan(teacherId, subscription));
       });
 
       await Promise.all(downgradePromises);
 
-      console.log(`Processed ${downgradePromises.length} grace period expirations`);
+      console.log(
+        `Processed ${downgradePromises.length} grace period expirations`,
+      );
       return null;
     } catch (error) {
       console.error("Error processing grace period expirations:", error);
@@ -345,8 +356,8 @@ async function downgradeToFreePlan(teacherId, subscription) {
       expiryDate: null,
       gracePeriodEnd: null,
       lastPaymentDate: null,
-      paystackCustomerCode: null,
-      paystackSubscriptionCode: null,
+      monnifyCustomerEmail: null,
+      monnifyTransactionReference: null,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       // Keep currentSubjects and currentStudents unchanged (data retention)
     });
@@ -357,7 +368,7 @@ async function downgradeToFreePlan(teacherId, subscription) {
       subscription,
       exceedsSubjectLimit,
       exceedsStudentLimit,
-      freePlanLimits
+      freePlanLimits,
     );
 
     console.log(`Downgraded ${teacherId} to Free plan`);
@@ -374,7 +385,7 @@ async function sendDowngradeNotification(
   subscription,
   exceedsSubjectLimit,
   exceedsStudentLimit,
-  freePlanLimits
+  freePlanLimits,
 ) {
   try {
     const teacherDoc = await db.collection("users").doc(teacherId).get();
@@ -382,9 +393,10 @@ async function sendDowngradeNotification(
 
     const teacher = teacherDoc.data();
 
-    const message = exceedsSubjectLimit || exceedsStudentLimit
-      ? `Your account has been downgraded to the Free plan. You currently have ${subscription.currentSubjects} subjects and ${subscription.currentStudents} students, which exceeds the Free plan limits (${freePlanLimits.subjectLimit} subjects, ${freePlanLimits.studentLimit} students). Your existing data has been retained, but you will not be able to register new subjects or students until you remove some or upgrade your plan.`
-      : `Your account has been downgraded to the Free plan. All your data has been retained.`;
+    const message =
+      exceedsSubjectLimit || exceedsStudentLimit
+        ? `Your account has been downgraded to the Free plan. You currently have ${subscription.currentSubjects} subjects and ${subscription.currentStudents} students, which exceeds the Free plan limits (${freePlanLimits.subjectLimit} subjects, ${freePlanLimits.studentLimit} students). Your existing data has been retained, but you will not be able to register new subjects or students until you remove some or upgrade your plan.`
+        : `Your account has been downgraded to the Free plan. All your data has been retained.`;
 
     await db.collection("mail").add({
       to: teacher.email,
@@ -418,7 +430,7 @@ exports.manualDowngrade = functions.https.onCall(async (data, context) => {
   if (!context.auth || !context.auth.token.admin) {
     throw new functions.https.HttpsError(
       "permission-denied",
-      "Only admins can manually trigger downgrades"
+      "Only admins can manually trigger downgrades",
     );
   }
 
@@ -427,17 +439,20 @@ exports.manualDowngrade = functions.https.onCall(async (data, context) => {
   if (!teacherId) {
     throw new functions.https.HttpsError(
       "invalid-argument",
-      "teacherId is required"
+      "teacherId is required",
     );
   }
 
   try {
-    const subscriptionDoc = await db.collection("subscriptions").doc(teacherId).get();
-    
+    const subscriptionDoc = await db
+      .collection("subscriptions")
+      .doc(teacherId)
+      .get();
+
     if (!subscriptionDoc.exists) {
       throw new functions.https.HttpsError(
         "not-found",
-        "Subscription not found"
+        "Subscription not found",
       );
     }
 
@@ -452,7 +467,7 @@ exports.manualDowngrade = functions.https.onCall(async (data, context) => {
     console.error("Error in manual downgrade:", error);
     throw new functions.https.HttpsError(
       "internal",
-      error.message || "Failed to downgrade subscription"
+      error.message || "Failed to downgrade subscription",
     );
   }
 });

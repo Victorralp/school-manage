@@ -42,7 +42,9 @@ const SchoolSubscriptionSettings = () => {
 
     setLoadingTransactions(true);
     try {
+      console.log('Fetching transactions for school ID:', school.id);
       const transactionsData = await getTransactionHistory(school.id);
+      console.log('Transactions found:', transactionsData.length, transactionsData);
       setTransactions(transactionsData);
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -127,7 +129,38 @@ const SchoolSubscriptionSettings = () => {
 
   const formatDate = (timestamp) => {
     if (!timestamp) return 'N/A';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp.seconds * 1000);
+    
+    let date;
+    
+    // Handle Firestore Timestamp object
+    if (timestamp.toDate && typeof timestamp.toDate === 'function') {
+      date = timestamp.toDate();
+    }
+    // Handle Firestore timestamp with seconds
+    else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    }
+    // Handle ISO string or regular date string
+    else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    }
+    // Handle Date object
+    else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+    // Handle milliseconds number
+    else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    }
+    else {
+      return 'N/A';
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'N/A';
+    }
+    
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',

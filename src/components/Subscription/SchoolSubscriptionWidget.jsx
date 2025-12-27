@@ -7,6 +7,124 @@ import Card from "../Card";
 import Button from "../Button";
 import Alert from "../Alert";
 
+// Import new enhanced components
+import CircularProgress from "./CircularProgress";
+import StatusBadge from "./StatusBadge";
+import ExpiryDisplay from "./ExpiryDisplay";
+import ContributionPanel from "./ContributionPanel";
+import { getPlanTheme } from "./subscriptionThemes";
+
+/**
+ * Star Icon - Used for Free tier
+ */
+const StarIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+    />
+  </svg>
+);
+
+/**
+ * Sparkles Icon - Used for Premium tier
+ */
+const SparklesIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+    />
+  </svg>
+);
+
+/**
+ * Crown Icon - Used for VIP tier
+ */
+const CrownIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M3 10l3-3 4 4 4-8 4 8 3-3v10H3V10z"
+    />
+  </svg>
+);
+
+/**
+ * Book Icon - Used for subjects in CircularProgress
+ */
+const BookIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+    />
+  </svg>
+);
+
+/**
+ * Users Icon - Used for students in CircularProgress
+ */
+const UsersIcon = ({ className }) => (
+  <svg
+    className={className}
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+    strokeWidth={2}
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+    />
+  </svg>
+);
+
+/**
+ * Icon mapping for plan tiers
+ */
+const TIER_ICONS = {
+  StarIcon,
+  SparklesIcon,
+  CrownIcon
+};
+
+/**
+ * Get tier icon component based on plan theme
+ */
+const getTierIcon = (iconName) => {
+  return TIER_ICONS[iconName] || StarIcon;
+};
+
 const SchoolSubscriptionWidget = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -30,7 +148,6 @@ const SchoolSubscriptionWidget = () => {
       const result = await initializeSchoolSubscription(user.uid);
       if (result.success) {
         setAlert({ type: 'success', message: 'Subscription initialized successfully! Refreshing...' });
-        // Reload the page to fetch the new subscription data
         setTimeout(() => {
           window.location.reload();
         }, 1500);
@@ -42,6 +159,16 @@ const SchoolSubscriptionWidget = () => {
       setAlert({ type: 'error', message: 'Failed to initialize subscription' });
     } finally {
       setInitializing(false);
+    }
+  };
+
+  // Handle navigation based on current path
+  const handleNavigate = (destination) => {
+    const path = window.location.pathname;
+    if (path.startsWith('/school')) {
+      navigate('/school/subscription');
+    } else {
+      navigate('/teacher/subscription');
     }
   };
 
@@ -128,63 +255,72 @@ const SchoolSubscriptionWidget = () => {
     );
   }
 
-  const getProgressColor = (percentage) => {
-    if (percentage >= 100) return "bg-red-500";
-    if (percentage >= 80) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
-  const getProgressBgColor = (percentage) => {
-    if (percentage >= 100) return "bg-red-100";
-    if (percentage >= 80) return "bg-yellow-100";
-    return "bg-green-100";
-  };
-
+  // Get theme configuration based on plan tier
+  const planTier = school.planTier || 'free';
+  const theme = getPlanTheme(planTier);
+  const TierIcon = getTierIcon(theme.icon);
+  
+  // Determine subscription status
+  const subscriptionStatus = school.status || 'active';
+  
+  // Check if we should show warning
   const showWarning = isNearLimit('subject') || isNearLimit('student');
 
+  // Prepare school usage data for ContributionPanel
+  const schoolUsageData = {
+    subjects: subjectUsage?.current || 0,
+    students: studentUsage?.current || 0
+  };
+
   return (
-    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
+    <Card 
+      className={`card-transition bg-gradient-to-br ${theme.gradient} border-2 ${theme.borderColor}`}
+      role="region"
+      aria-label="School subscription information"
+    >
+      {/* Enhanced Header with Plan Theme - Task 6.1 */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center">
-          <div className="bg-blue-600 p-2 rounded-lg">
-            <svg
-              className="h-6 w-6 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-              />
-            </svg>
+          {/* Tier Icon with themed background */}
+          <div className={`${theme.iconBg} p-2.5 rounded-xl shadow-sm`}>
+            <TierIcon className={`h-6 w-6 text-${theme.accentColor}`} />
           </div>
           <div className="ml-3">
             <h3 className="text-lg font-bold text-gray-900">
               {school.name}
             </h3>
-            <p className="text-sm text-gray-600 capitalize">
-              {school.planTier} Plan {isAdmin && <span className="text-blue-600 font-semibold">(Admin)</span>}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {/* Plan tier badge with theme colors */}
+              <span 
+                className={`px-2.5 py-0.5 text-xs font-semibold rounded-full ${theme.badgeColor} shadow-sm`}
+                aria-label={`${planTier} plan`}
+              >
+                {planTier.toUpperCase()}
+              </span>
+              {isAdmin && (
+                <span className="text-xs text-blue-600 font-semibold">(Admin)</span>
+              )}
+            </div>
           </div>
         </div>
-        {school.planTier === 'free' && (
-          <span className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-semibold rounded-full">
-            FREE
-          </span>
-        )}
+        
+        {/* Status Badge - Task 6.1 */}
+        <StatusBadge status={subscriptionStatus} />
       </div>
 
       {/* Warning Banner */}
       {showWarning && (
-        <div className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
+        <div 
+          className="mb-4 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded"
+          role="alert"
+          aria-label="Usage limit warning"
+        >
           <div className="flex items-center">
             <svg
               className="h-5 w-5 text-yellow-400 mr-2"
               fill="currentColor"
               viewBox="0 0 20 20"
+              aria-hidden="true"
             >
               <path
                 fillRule="evenodd"
@@ -199,112 +335,133 @@ const SchoolSubscriptionWidget = () => {
         </div>
       )}
 
-      {/* School-Wide Usage Summary */}
-      <div className="mb-3">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+      {/* School-Wide Usage with Circular Progress - Task 6.2 */}
+      <div className="mb-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
           School-Wide Usage
         </h4>
-        <div className="space-y-3">
-          {/* Subjects Usage */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-700">Subjects</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {subjectUsage.current} / {subjectUsage.limit}
-              </span>
-            </div>
-            <div className={`w-full ${getProgressBgColor(subjectUsage.percentage)} rounded-full h-2`}>
-              <div
-                className={`${getProgressColor(subjectUsage.percentage)} h-2 rounded-full transition-all duration-300`}
-                style={{ width: `${Math.min(subjectUsage.percentage, 100)}%` }}
-              ></div>
-            </div>
-          </div>
-
-          {/* Students Usage */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-medium text-gray-700">Students</span>
-              <span className="text-sm font-semibold text-gray-900">
-                {studentUsage.current} / {studentUsage.limit}
-              </span>
-            </div>
-            <div className={`w-full ${getProgressBgColor(studentUsage.percentage)} rounded-full h-2`}>
-              <div
-                className={`${getProgressColor(studentUsage.percentage)} h-2 rounded-full transition-all duration-300`}
-                style={{ width: `${Math.min(studentUsage.percentage, 100)}%` }}
-              ></div>
-            </div>
-          </div>
+        <div 
+          className="grid grid-cols-2 sm:grid-cols-2 gap-4 sm:gap-6 justify-items-center subscription-usage-grid"
+          role="group"
+          aria-label="Usage statistics"
+        >
+          {/* Subjects CircularProgress */}
+          <CircularProgress
+            current={subjectUsage?.current || 0}
+            limit={subjectUsage?.limit || 0}
+            label="Subjects"
+            icon={<BookIcon className="w-full h-full" />}
+            size="md"
+          />
+          
+          {/* Students CircularProgress */}
+          <CircularProgress
+            current={studentUsage?.current || 0}
+            limit={studentUsage?.limit || 0}
+            label="Students"
+            icon={<UsersIcon className="w-full h-full" />}
+            size="md"
+          />
         </div>
       </div>
 
-      {/* Individual Teacher Usage */}
-      {teacherUsage && (
-        <div className="mb-4 bg-white bg-opacity-60 rounded-lg p-3 border border-blue-200">
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Your Contribution
-          </h4>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="text-xs text-gray-600">Subjects</p>
-              <p className="text-lg font-bold text-gray-900">{teacherUsage.subjects}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600">Students</p>
-              <p className="text-lg font-bold text-gray-900">{teacherUsage.students}</p>
-            </div>
+      {/* Contribution Panel and Expiry Display - Task 6.3 */}
+      <div className="space-y-3 mb-4">
+        {/* Teacher Contribution Panel */}
+        {teacherUsage && (
+          <ContributionPanel
+            teacherUsage={teacherUsage}
+            schoolUsage={schoolUsageData}
+          />
+        )}
+        
+        {/* Expiry Display for paid plans */}
+        {planTier !== 'free' && school.expiryDate && (
+          <div className="flex justify-center">
+            <ExpiryDisplay 
+              expiryDate={school.expiryDate} 
+              showFullDate={true}
+            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-2">
+      {/* Enhanced Action Buttons - Task 6.4, 7.1, 7.2 */}
+      <div className="flex flex-col sm:flex-row gap-2 action-buttons-stack sm:action-buttons-row">
         <Button
-          variant="outline"
+          variant={theme.buttonVariant}
           size="sm"
           fullWidth
-          onClick={() => {
-            // Navigate based on user role
-            const path = window.location.pathname;
-            if (path.startsWith('/school')) {
-              // School role user
-              navigate('/school/subscription');
-            } else {
-              // Teacher role user
-              navigate('/teacher/subscription');
-            }
-          }}
+          onClick={() => handleNavigate('details')}
+          className={`
+            btn-hover-scale touch-target
+            transition-all duration-200 
+            focus:ring-2 focus:ring-offset-2 focus:ring-${theme.accentColor}
+          `}
+          aria-label="View subscription details"
         >
           View Details
         </Button>
-        {isAdmin && school.planTier === 'free' && (
+        
+        {isAdmin && planTier === 'free' && (
           <Button
             variant="primary"
             size="sm"
             fullWidth
-            onClick={() => {
-              // Navigate based on user role
-              const path = window.location.pathname;
-              if (path.startsWith('/school')) {
-                // School role user
-                navigate('/school/subscription');
-              } else {
-                // Teacher role user
-                navigate('/teacher/subscription');
-              }
-            }}
+            onClick={() => handleNavigate('upgrade')}
+            className={`
+              btn-upgrade-glow touch-target
+              bg-gradient-to-r from-amber-500 to-orange-500 
+              hover:from-amber-600 hover:to-orange-600
+              text-white font-semibold
+              focus:ring-2 focus:ring-offset-2 focus:ring-amber-500
+            `}
+            aria-label="Upgrade subscription plan"
           >
+            <svg
+              className="h-4 w-4 mr-1.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 10l7-7m0 0l7 7m-7-7v18"
+              />
+            </svg>
             Upgrade Plan
           </Button>
         )}
-        {!isAdmin && school.planTier === 'free' && (
+        
+        {isAdmin && planTier !== 'free' && (
+          <Button
+            variant="primary"
+            size="sm"
+            fullWidth
+            onClick={() => handleNavigate('manage')}
+            className={`
+              btn-hover-scale touch-target
+              transition-all duration-200 
+              focus:ring-2 focus:ring-offset-2 focus:ring-${theme.accentColor}
+            `}
+            aria-label="Manage subscription"
+          >
+            Manage Plan
+          </Button>
+        )}
+        
+        {!isAdmin && planTier === 'free' && (
           <Button
             variant="outline"
             size="sm"
             fullWidth
             disabled
             title="Only admins can upgrade"
+            className="touch-target"
+            aria-label="Contact admin to upgrade (only admins can upgrade)"
           >
             Contact Admin
           </Button>

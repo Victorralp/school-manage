@@ -1,5 +1,18 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { doc, getDoc, onSnapshot, updateDoc, increment } from "firebase/firestore";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import {
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc,
+  increment,
+} from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "./AuthContext";
 import { processPayment } from "../utils/paymentVerification";
@@ -21,7 +34,7 @@ export const SubscriptionProvider = ({ children }) => {
       try {
         const planConfigRef = doc(db, "config", "plans");
         const planConfigDoc = await getDoc(planConfigRef);
-        
+
         if (planConfigDoc.exists()) {
           const plans = planConfigDoc.data();
           setAvailablePlans(plans);
@@ -33,7 +46,11 @@ export const SubscriptionProvider = ({ children }) => {
               price: { NGN: 0, USD: 0 },
               subjectLimit: 3,
               studentLimit: 10,
-              features: ["3 subjects per teacher", "Up to 10 students per teacher", "Limited support"]
+              features: [
+                "3 subjects per teacher",
+                "Up to 10 students per teacher",
+                "Limited support",
+              ],
             },
             premium: {
               name: "Premium Plan",
@@ -41,7 +58,12 @@ export const SubscriptionProvider = ({ children }) => {
               subjectLimit: 6,
               studentLimit: { min: 15, max: 20 },
               billingCycle: "monthly",
-              features: ["6 subjects per teacher", "15-20 students per teacher", "Priority support", "Advanced analytics"]
+              features: [
+                "6 subjects per teacher",
+                "15-20 students per teacher",
+                "Priority support",
+                "Advanced analytics",
+              ],
             },
             vip: {
               name: "VIP Plan",
@@ -49,8 +71,13 @@ export const SubscriptionProvider = ({ children }) => {
               subjectLimit: { min: 6, max: 10 },
               studentLimit: 30,
               billingCycle: "monthly",
-              features: ["6-10 subjects per teacher", "30 students per teacher", "24/7 support", "Custom features"]
-            }
+              features: [
+                "6-10 subjects per teacher",
+                "30 students per teacher",
+                "24/7 support",
+                "Custom features",
+              ],
+            },
           };
           setAvailablePlans(defaultPlans);
         }
@@ -74,19 +101,19 @@ export const SubscriptionProvider = ({ children }) => {
 
     setLoading(true);
     const subscriptionRef = doc(db, "subscriptions", user.uid);
-    
+
     const unsubscribe = onSnapshot(
       subscriptionRef,
       (docSnapshot) => {
         if (docSnapshot.exists()) {
           const subData = docSnapshot.data();
           setSubscription(subData);
-          
+
           // Set current plan details
           if (availablePlans && subData.planTier) {
             setCurrentPlan(availablePlans[subData.planTier]);
           }
-          
+
           setError(null);
         } else {
           // No subscription document exists
@@ -99,7 +126,7 @@ export const SubscriptionProvider = ({ children }) => {
         console.error("Error listening to subscription:", err);
         setError("Failed to load subscription data");
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -114,7 +141,7 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Helper function to get actual limit value (handles ranges)
   const getActualLimit = useCallback((limitValue) => {
-    if (typeof limitValue === 'object' && limitValue.max) {
+    if (typeof limitValue === "object" && limitValue.max) {
       return limitValue.max;
     }
     return limitValue;
@@ -142,85 +169,99 @@ export const SubscriptionProvider = ({ children }) => {
   }, [subscription, currentPlan, getActualLimit]);
 
   // Increment usage count
-  const incrementUsage = useCallback(async (type) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const incrementUsage = useCallback(
+    async (type) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
 
-    try {
-      const subscriptionRef = doc(db, "subscriptions", user.uid);
-      const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-      
-      await updateDoc(subscriptionRef, {
-        [field]: increment(1),
-        updatedAt: new Date()
-      });
-    } catch (err) {
-      console.error(`Error incrementing ${type} usage:`, err);
-      throw new Error(`Failed to update ${type} count`);
-    }
-  }, [user]);
+      try {
+        const subscriptionRef = doc(db, "subscriptions", user.uid);
+        const field =
+          type === "subject" ? "currentSubjects" : "currentStudents";
+
+        await updateDoc(subscriptionRef, {
+          [field]: increment(1),
+          updatedAt: new Date(),
+        });
+      } catch (err) {
+        console.error(`Error incrementing ${type} usage:`, err);
+        throw new Error(`Failed to update ${type} count`);
+      }
+    },
+    [user],
+  );
 
   // Decrement usage count
-  const decrementUsage = useCallback(async (type) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const decrementUsage = useCallback(
+    async (type) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
 
-    try {
-      const subscriptionRef = doc(db, "subscriptions", user.uid);
-      const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-      
-      await updateDoc(subscriptionRef, {
-        [field]: increment(-1),
-        updatedAt: new Date()
-      });
-    } catch (err) {
-      console.error(`Error decrementing ${type} usage:`, err);
-      throw new Error(`Failed to update ${type} count`);
-    }
-  }, [user]);
+      try {
+        const subscriptionRef = doc(db, "subscriptions", user.uid);
+        const field =
+          type === "subject" ? "currentSubjects" : "currentStudents";
+
+        await updateDoc(subscriptionRef, {
+          [field]: increment(-1),
+          updatedAt: new Date(),
+        });
+      } catch (err) {
+        console.error(`Error decrementing ${type} usage:`, err);
+        throw new Error(`Failed to update ${type} count`);
+      }
+    },
+    [user],
+  );
 
   // Check if adding new item would exceed limit
-  const checkLimit = useCallback((type) => {
-    if (!subscription || !currentPlan) {
-      return false;
-    }
+  const checkLimit = useCallback(
+    (type) => {
+      if (!subscription || !currentPlan) {
+        return false;
+      }
 
-    const usage = type === 'subject' ? subjectUsage : studentUsage;
-    
-    // Block new registrations if in grace period
-    if (subscription.status === 'grace_period') {
-      return false;
-    }
-    
-    // Block new registrations if current usage already exceeds limit
-    // This handles the case where user was downgraded with excess data
-    if (usage.current >= usage.limit) {
-      return false;
-    }
-    
-    return usage.current < usage.limit;
-  }, [subscription, currentPlan, subjectUsage, studentUsage]);
+      const usage = type === "subject" ? subjectUsage : studentUsage;
+
+      // Block new registrations if in grace period
+      if (subscription.status === "grace_period") {
+        return false;
+      }
+
+      // Block new registrations if current usage already exceeds limit
+      // This handles the case where user was downgraded with excess data
+      if (usage.current >= usage.limit) {
+        return false;
+      }
+
+      return usage.current < usage.limit;
+    },
+    [subscription, currentPlan, subjectUsage, studentUsage],
+  );
 
   // Helper methods
   const canAddSubject = useCallback(() => {
-    return checkLimit('subject');
+    return checkLimit("subject");
   }, [checkLimit]);
 
   const canAddStudent = useCallback(() => {
-    return checkLimit('student');
+    return checkLimit("student");
   }, [checkLimit]);
 
   // Check if near limit (80% threshold)
-  const isNearLimit = useCallback((type) => {
-    const usage = type === 'subject' ? subjectUsage : studentUsage;
-    return usage.percentage >= 80;
-  }, [subjectUsage, studentUsage]);
+  const isNearLimit = useCallback(
+    (type) => {
+      const usage = type === "subject" ? subjectUsage : studentUsage;
+      return usage.percentage >= 80;
+    },
+    [subjectUsage, studentUsage],
+  );
 
   // Check if subscription is in grace period
   const isInGracePeriod = useCallback(() => {
-    return subscription?.status === 'grace_period';
+    return subscription?.status === "grace_period";
   }, [subscription]);
 
   // Check if current usage exceeds limits (after downgrade)
@@ -228,7 +269,7 @@ export const SubscriptionProvider = ({ children }) => {
     if (!subscription || !currentPlan) {
       return { subjects: false, students: false };
     }
-    
+
     return {
       subjects: subjectUsage.current > subjectUsage.limit,
       students: studentUsage.current > studentUsage.limit,
@@ -236,70 +277,79 @@ export const SubscriptionProvider = ({ children }) => {
   }, [subscription, currentPlan, subjectUsage, studentUsage]);
 
   // Validate plan upgrade/downgrade
-  const validatePlanChange = useCallback((newPlanTier) => {
-    if (!availablePlans || !availablePlans[newPlanTier]) {
-      return { valid: false, message: "Invalid plan tier" };
-    }
-
-    if (!subscription) {
-      return { valid: false, message: "No active subscription found" };
-    }
-
-    const currentTier = subscription.planTier;
-    if (currentTier === newPlanTier) {
-      return { valid: false, message: "Already on this plan" };
-    }
-
-    return { valid: true, message: "Plan change is valid" };
-  }, [availablePlans, subscription]);
-
-  // Upgrade plan (initiates payment flow)
-  const upgradePlan = useCallback(async (planTier, currency = 'NGN') => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    const validation = validatePlanChange(planTier);
-    if (!validation.valid) {
-      throw new Error(validation.message);
-    }
-
-    const newPlan = availablePlans[planTier];
-    if (!newPlan) {
-      throw new Error("Plan not found");
-    }
-
-    // Return payment details for the payment component to handle
-    return {
-      planTier,
-      planName: newPlan.name,
-      amount: newPlan.price[currency],
-      currency,
-      features: newPlan.features,
-      subjectLimit: getActualLimit(newPlan.subjectLimit),
-      studentLimit: getActualLimit(newPlan.studentLimit)
-    };
-  }, [user, availablePlans, validatePlanChange, getActualLimit]);
-
-  // Process payment after successful Paystack transaction
-  const handlePaymentSuccess = useCallback(async (paymentData) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    try {
-      const result = await processPayment(user.uid, paymentData);
-      
-      if (!result.success) {
-        throw new Error(result.error || "Payment processing failed");
+  const validatePlanChange = useCallback(
+    (newPlanTier) => {
+      if (!availablePlans || !availablePlans[newPlanTier]) {
+        return { valid: false, message: "Invalid plan tier" };
       }
 
-      return result;
-    } catch (err) {
-      console.error("Error processing payment:", err);
-      throw err;
-    }
-  }, [user]);
+      if (!subscription) {
+        return { valid: false, message: "No active subscription found" };
+      }
+
+      const currentTier = subscription.planTier;
+      if (currentTier === newPlanTier) {
+        return { valid: false, message: "Already on this plan" };
+      }
+
+      return { valid: true, message: "Plan change is valid" };
+    },
+    [availablePlans, subscription],
+  );
+
+  // Upgrade plan (initiates payment flow)
+  const upgradePlan = useCallback(
+    async (planTier, currency = "NGN") => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      const validation = validatePlanChange(planTier);
+      if (!validation.valid) {
+        throw new Error(validation.message);
+      }
+
+      const newPlan = availablePlans[planTier];
+      if (!newPlan) {
+        throw new Error("Plan not found");
+      }
+
+      // Return payment details for the payment component to handle
+      return {
+        planTier,
+        planName: newPlan.name,
+        amount: newPlan.price[currency],
+        currency,
+        features: newPlan.features,
+        subjectLimit: getActualLimit(newPlan.subjectLimit),
+        studentLimit: getActualLimit(newPlan.studentLimit),
+      };
+    },
+    [user, availablePlans, validatePlanChange, getActualLimit],
+  );
+
+  // Process payment after successful Monnify transaction
+  const handlePaymentSuccess = useCallback(
+    async (paymentData) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      try {
+        const result = await processPayment(user.uid, paymentData);
+
+        if (!result.success) {
+          throw new Error(result.error || "Payment processing failed");
+        }
+
+        return result;
+      } catch (err) {
+        console.error("Error processing payment:", err);
+        throw err;
+      }
+    },
+    [user],
+  );
 
   // Cancel subscription
   const cancelSubscription = useCallback(async () => {
@@ -311,23 +361,27 @@ export const SubscriptionProvider = ({ children }) => {
       throw new Error("No active subscription found");
     }
 
-    if (subscription.planTier === 'free') {
+    if (subscription.planTier === "free") {
       throw new Error("Cannot cancel free plan");
     }
 
     try {
       const subscriptionRef = doc(db, "subscriptions", user.uid);
-      
+
       // Update subscription to mark for cancellation
       // The actual downgrade will be handled by backend/Cloud Functions
       await updateDoc(subscriptionRef, {
-        status: 'grace_period',
+        status: "grace_period",
         cancelledAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       // Log cancellation event
-      await logSubscriptionCancellation(user.uid, subscription.planTier, 'user_requested');
+      await logSubscriptionCancellation(
+        user.uid,
+        subscription.planTier,
+        "user_requested",
+      );
 
       return { success: true, message: "Subscription marked for cancellation" };
     } catch (err) {
@@ -367,7 +421,9 @@ export const SubscriptionProvider = ({ children }) => {
 export const useSubscription = () => {
   const context = useContext(SubscriptionContext);
   if (!context) {
-    throw new Error("useSubscription must be used within a SubscriptionProvider");
+    throw new Error(
+      "useSubscription must be used within a SubscriptionProvider",
+    );
   }
   return context;
 };

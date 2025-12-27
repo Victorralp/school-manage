@@ -3,31 +3,31 @@
  * Handles all database operations for subscriptions and transactions
  */
 
-import { 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   collection,
   query,
   where,
   getDocs,
   onSnapshot,
   serverTimestamp,
-  increment
-} from 'firebase/firestore';
-import { db } from './config';
-import { 
-  createSubscriptionDocument, 
+  increment,
+} from "firebase/firestore";
+import { db } from "./config";
+import {
+  createSubscriptionDocument,
   createTransactionDocument,
   PLAN_TIERS,
-  SUBSCRIPTION_STATUS 
-} from './subscriptionModels';
+  SUBSCRIPTION_STATUS,
+} from "./subscriptionModels";
 
 // Collection names
-const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
-const TRANSACTIONS_COLLECTION = 'transactions';
-const CONFIG_COLLECTION = 'config';
+const SUBSCRIPTIONS_COLLECTION = "subscriptions";
+const TRANSACTIONS_COLLECTION = "transactions";
+const CONFIG_COLLECTION = "config";
 
 /**
  * Initialize a subscription for a new teacher
@@ -36,17 +36,20 @@ const CONFIG_COLLECTION = 'config';
  */
 export const initializeSubscription = async (teacherId) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
-  
+
   // Check if subscription already exists
   const existingDoc = await getDoc(subscriptionRef);
   if (existingDoc.exists()) {
     return existingDoc.data();
   }
-  
+
   // Create new free plan subscription
-  const subscriptionData = createSubscriptionDocument(teacherId, PLAN_TIERS.FREE);
+  const subscriptionData = createSubscriptionDocument(
+    teacherId,
+    PLAN_TIERS.FREE,
+  );
   await setDoc(subscriptionRef, subscriptionData);
-  
+
   return subscriptionData;
 };
 
@@ -58,11 +61,11 @@ export const initializeSubscription = async (teacherId) => {
 export const getSubscription = async (teacherId) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
   const subscriptionDoc = await getDoc(subscriptionRef);
-  
+
   if (subscriptionDoc.exists()) {
     return { id: subscriptionDoc.id, ...subscriptionDoc.data() };
   }
-  
+
   return null;
 };
 
@@ -74,17 +77,21 @@ export const getSubscription = async (teacherId) => {
  */
 export const subscribeToSubscription = (teacherId, callback) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
-  
-  return onSnapshot(subscriptionRef, (doc) => {
-    if (doc.exists()) {
-      callback({ id: doc.id, ...doc.data() });
-    } else {
-      callback(null);
-    }
-  }, (error) => {
-    console.error('Error listening to subscription:', error);
-    callback(null, error);
-  });
+
+  return onSnapshot(
+    subscriptionRef,
+    (doc) => {
+      if (doc.exists()) {
+        callback({ id: doc.id, ...doc.data() });
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("Error listening to subscription:", error);
+      callback(null, error);
+    },
+  );
 };
 
 /**
@@ -94,16 +101,20 @@ export const subscribeToSubscription = (teacherId, callback) => {
  * @param {object} paymentData - Payment information
  * @returns {Promise<void>}
  */
-export const updateSubscriptionPlan = async (teacherId, planTier, paymentData = {}) => {
+export const updateSubscriptionPlan = async (
+  teacherId,
+  planTier,
+  paymentData = {},
+) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
-  
+
   const updateData = {
     planTier,
     status: SUBSCRIPTION_STATUS.ACTIVE,
     updatedAt: serverTimestamp(),
-    ...paymentData
+    ...paymentData,
   };
-  
+
   await updateDoc(subscriptionRef, updateData);
 };
 
@@ -115,11 +126,11 @@ export const updateSubscriptionPlan = async (teacherId, planTier, paymentData = 
  */
 export const incrementUsage = async (teacherId, type) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
-  const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-  
+  const field = type === "subject" ? "currentSubjects" : "currentStudents";
+
   await updateDoc(subscriptionRef, {
     [field]: increment(1),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 };
 
@@ -131,11 +142,11 @@ export const incrementUsage = async (teacherId, type) => {
  */
 export const decrementUsage = async (teacherId, type) => {
   const subscriptionRef = doc(db, SUBSCRIPTIONS_COLLECTION, teacherId);
-  const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
-  
+  const field = type === "subject" ? "currentSubjects" : "currentStudents";
+
   await updateDoc(subscriptionRef, {
     [field]: increment(-1),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 };
 
@@ -148,9 +159,9 @@ export const createTransaction = async (transactionData) => {
   const transactionRef = doc(collection(db, TRANSACTIONS_COLLECTION));
   await setDoc(transactionRef, {
     ...transactionData,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
   });
-  
+
   return transactionRef.id;
 };
 
@@ -158,16 +169,20 @@ export const createTransaction = async (transactionData) => {
  * Update transaction status
  * @param {string} transactionId - Transaction ID
  * @param {string} status - New status
- * @param {object} paystackResponse - Paystack response data
+ * @param {object} paymentResponse - Payment provider response data (Monnify)
  * @returns {Promise<void>}
  */
-export const updateTransaction = async (transactionId, status, paystackResponse = null) => {
+export const updateTransaction = async (
+  transactionId,
+  status,
+  paymentResponse = null,
+) => {
   const transactionRef = doc(db, TRANSACTIONS_COLLECTION, transactionId);
-  
+
   await updateDoc(transactionRef, {
     status,
-    paystackResponse,
-    completedAt: serverTimestamp()
+    monnifyResponse: paymentResponse,
+    completedAt: serverTimestamp(),
   });
 };
 
@@ -179,11 +194,11 @@ export const updateTransaction = async (transactionId, status, paystackResponse 
 export const getTransactionHistory = async (teacherId) => {
   const transactionsQuery = query(
     collection(db, TRANSACTIONS_COLLECTION),
-    where('teacherId', '==', teacherId)
+    where("teacherId", "==", teacherId),
   );
-  
+
   const querySnapshot = await getDocs(transactionsQuery);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 /**
@@ -191,13 +206,13 @@ export const getTransactionHistory = async (teacherId) => {
  * @returns {Promise<object>} - Plan configuration
  */
 export const getPlanConfig = async () => {
-  const configRef = doc(db, CONFIG_COLLECTION, 'plans');
+  const configRef = doc(db, CONFIG_COLLECTION, "plans");
   const configDoc = await getDoc(configRef);
-  
+
   if (configDoc.exists()) {
     return configDoc.data();
   }
-  
+
   // Return default config if not found in Firestore
   return null;
 };
@@ -209,6 +224,6 @@ export const getPlanConfig = async () => {
  * @returns {Promise<void>}
  */
 export const initializePlanConfig = async (planConfig) => {
-  const configRef = doc(db, CONFIG_COLLECTION, 'plans');
+  const configRef = doc(db, CONFIG_COLLECTION, "plans");
   await setDoc(configRef, planConfig);
 };

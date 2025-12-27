@@ -15,23 +15,23 @@ import {
   onSnapshot,
   serverTimestamp,
   increment,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from './config';
+  writeBatch,
+} from "firebase/firestore";
+import { db } from "./config";
 import {
   createSchoolDocument,
   createTeacherSchoolDocument,
   createTransactionDocument,
   PLAN_TIERS,
   SUBSCRIPTION_STATUS,
-  SCHOOL_ROLES
-} from './subscriptionModels';
+  SCHOOL_ROLES,
+} from "./subscriptionModels";
 
 // Collection names
-const SCHOOLS_COLLECTION = 'schools';
-const TEACHERS_COLLECTION = 'teachers';
-const TRANSACTIONS_COLLECTION = 'transactions';
-const CONFIG_COLLECTION = 'config';
+const SCHOOLS_COLLECTION = "schools";
+const TEACHERS_COLLECTION = "teachers";
+const TRANSACTIONS_COLLECTION = "transactions";
+const CONFIG_COLLECTION = "config";
 
 /**
  * Create a new school with admin user
@@ -40,7 +40,11 @@ const CONFIG_COLLECTION = 'config';
  * @param {string} planTier - Initial plan tier (default: free)
  * @returns {Promise<string>} - The created school ID
  */
-export const createSchool = async (schoolName, adminUserId, planTier = PLAN_TIERS.FREE) => {
+export const createSchool = async (
+  schoolName,
+  adminUserId,
+  planTier = PLAN_TIERS.FREE,
+) => {
   const batch = writeBatch(db);
 
   // Create school document
@@ -50,7 +54,11 @@ export const createSchool = async (schoolName, adminUserId, planTier = PLAN_TIER
 
   // Create teacher-school relationship for admin
   const teacherRef = doc(db, TEACHERS_COLLECTION, adminUserId);
-  const teacherData = createTeacherSchoolDocument(adminUserId, schoolRef.id, SCHOOL_ROLES.ADMIN);
+  const teacherData = createTeacherSchoolDocument(
+    adminUserId,
+    schoolRef.id,
+    SCHOOL_ROLES.ADMIN,
+  );
   batch.set(teacherRef, teacherData);
 
   await batch.commit();
@@ -100,16 +108,20 @@ export const getSchoolByTeacherId = async (teacherId) => {
 export const subscribeToSchool = (schoolId, callback) => {
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
 
-  return onSnapshot(schoolRef, (doc) => {
-    if (doc.exists()) {
-      callback({ id: doc.id, ...doc.data() });
-    } else {
-      callback(null);
-    }
-  }, (error) => {
-    console.error('Error listening to school:', error);
-    callback(null, error);
-  });
+  return onSnapshot(
+    schoolRef,
+    (doc) => {
+      if (doc.exists()) {
+        callback({ id: doc.id, ...doc.data() });
+      } else {
+        callback(null);
+      }
+    },
+    (error) => {
+      console.error("Error listening to school:", error);
+      callback(null, error);
+    },
+  );
 };
 
 /**
@@ -127,7 +139,7 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
   }
 
   // Fallback: Get schoolId from users collection
-  const userRef = doc(db, 'users', teacherId);
+  const userRef = doc(db, "users", teacherId);
   const userDoc = await getDoc(userRef);
 
   if (userDoc.exists()) {
@@ -137,9 +149,9 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
       return {
         teacherId: teacherId,
         schoolId: userData.schoolId,
-        role: userData.role === 'school' ? 'admin' : 'teacher',
+        role: userData.role === "school" ? "admin" : "teacher",
         currentSubjects: 0,
-        currentStudents: 0
+        currentStudents: 0,
       };
     }
   }
@@ -154,7 +166,11 @@ export const getTeacherSchoolRelationship = async (teacherId) => {
  * @param {string} role - The teacher's role (default: teacher)
  * @returns {Promise<void>}
  */
-export const addTeacherToSchool = async (teacherId, schoolId, role = SCHOOL_ROLES.TEACHER) => {
+export const addTeacherToSchool = async (
+  teacherId,
+  schoolId,
+  role = SCHOOL_ROLES.TEACHER,
+) => {
   const batch = writeBatch(db);
 
   // Create teacher-school relationship
@@ -166,7 +182,7 @@ export const addTeacherToSchool = async (teacherId, schoolId, role = SCHOOL_ROLE
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
   batch.update(schoolRef, {
     teacherCount: increment(1),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   await batch.commit();
@@ -181,7 +197,7 @@ export const removeTeacherFromSchool = async (teacherId) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
 
   if (!teacherRelationship) {
-    throw new Error('Teacher not found in any school');
+    throw new Error("Teacher not found in any school");
   }
 
   const batch = writeBatch(db);
@@ -195,7 +211,7 @@ export const removeTeacherFromSchool = async (teacherId) => {
     currentSubjects: increment(-teacherRelationship.currentSubjects),
     currentStudents: increment(-teacherRelationship.currentStudents),
     teacherCount: increment(-1),
-    updatedAt: serverTimestamp()
+    updatedAt: serverTimestamp(),
   });
 
   // Delete teacher-school relationship
@@ -214,27 +230,35 @@ export const incrementUsage = async (teacherId, type) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
 
   if (!teacherRelationship) {
-    throw new Error('Teacher not found in any school');
+    throw new Error("Teacher not found in any school");
   }
 
-  const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
+  const field = type === "subject" ? "currentSubjects" : "currentStudents";
 
   // Update teacher's individual usage using set with merge to handle non-existent docs
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
-  await setDoc(teacherRef, {
-    teacherId: teacherId,
-    schoolId: teacherRelationship.schoolId,
-    role: teacherRelationship.role || 'teacher',
-    [field]: increment(1),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  await setDoc(
+    teacherRef,
+    {
+      teacherId: teacherId,
+      schoolId: teacherRelationship.schoolId,
+      role: teacherRelationship.role || "teacher",
+      [field]: increment(1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
-  await setDoc(schoolRef, {
-    [field]: increment(1),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  await setDoc(
+    schoolRef,
+    {
+      [field]: increment(1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 };
 
 /**
@@ -247,47 +271,61 @@ export const decrementUsage = async (teacherId, type) => {
   const teacherRelationship = await getTeacherSchoolRelationship(teacherId);
 
   if (!teacherRelationship) {
-    throw new Error('Teacher not found in any school');
+    throw new Error("Teacher not found in any school");
   }
 
-  const field = type === 'subject' ? 'currentSubjects' : 'currentStudents';
+  const field = type === "subject" ? "currentSubjects" : "currentStudents";
 
   // Update teacher's individual usage using set with merge
   const teacherRef = doc(db, TEACHERS_COLLECTION, teacherId);
-  await setDoc(teacherRef, {
-    teacherId: teacherId,
-    schoolId: teacherRelationship.schoolId,
-    role: teacherRelationship.role || 'teacher',
-    [field]: increment(-1),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  await setDoc(
+    teacherRef,
+    {
+      teacherId: teacherId,
+      schoolId: teacherRelationship.schoolId,
+      role: teacherRelationship.role || "teacher",
+      [field]: increment(-1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 
   // Update school's total usage
   const schoolRef = doc(db, SCHOOLS_COLLECTION, teacherRelationship.schoolId);
-  await setDoc(schoolRef, {
-    [field]: increment(-1),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  await setDoc(
+    schoolRef,
+    {
+      [field]: increment(-1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 };
 
 /**
  * Update school's subscription plan
+ * Uses setDoc with merge to handle cases where some fields might not exist
  * @param {string} schoolId - The school's ID
  * @param {string} planTier - New plan tier
  * @param {object} paymentData - Payment information
  * @returns {Promise<void>}
  */
-export const updateSchoolPlan = async (schoolId, planTier, paymentData = {}) => {
+export const updateSchoolPlan = async (
+  schoolId,
+  planTier,
+  paymentData = {},
+) => {
   const schoolRef = doc(db, SCHOOLS_COLLECTION, schoolId);
 
   const updateData = {
     planTier,
     status: SUBSCRIPTION_STATUS.ACTIVE,
     updatedAt: serverTimestamp(),
-    ...paymentData
+    ...paymentData,
   };
 
-  await updateDoc(schoolRef, updateData);
+  // Use setDoc with merge to handle documents that might not have all fields
+  await setDoc(schoolRef, updateData, { merge: true });
 };
 
 /**
@@ -299,7 +337,7 @@ export const createTransaction = async (transactionData) => {
   const transactionRef = doc(collection(db, TRANSACTIONS_COLLECTION));
   await setDoc(transactionRef, {
     ...transactionData,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
   });
 
   return transactionRef.id;
@@ -309,32 +347,66 @@ export const createTransaction = async (transactionData) => {
  * Update transaction status
  * @param {string} transactionId - Transaction ID
  * @param {string} status - New status
- * @param {object} paystackResponse - Paystack response data
+ * @param {object} paymentResponse - Payment provider response data (Monnify)
  * @returns {Promise<void>}
  */
-export const updateTransaction = async (transactionId, status, paystackResponse = null) => {
+export const updateTransaction = async (
+  transactionId,
+  status,
+  paymentResponse = null,
+) => {
   const transactionRef = doc(db, TRANSACTIONS_COLLECTION, transactionId);
 
   await updateDoc(transactionRef, {
     status,
-    paystackResponse,
-    completedAt: serverTimestamp()
+    monnifyResponse: paymentResponse,
+    completedAt: serverTimestamp(),
   });
 };
 
 /**
  * Get transaction history for a school
+ * Checks both schoolId and teacherId fields for backwards compatibility
  * @param {string} schoolId - The school's ID
  * @returns {Promise<array>} - Array of transaction documents
  */
 export const getTransactionHistory = async (schoolId) => {
-  const transactionsQuery = query(
+  // Query by schoolId
+  const schoolQuery = query(
     collection(db, TRANSACTIONS_COLLECTION),
-    where('schoolId', '==', schoolId)
+    where("schoolId", "==", schoolId),
   );
 
-  const querySnapshot = await getDocs(transactionsQuery);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  // Also query by teacherId (for backwards compatibility - some transactions may use teacherId)
+  const teacherQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("teacherId", "==", schoolId),
+  );
+
+  const [schoolSnapshot, teacherSnapshot] = await Promise.all([
+    getDocs(schoolQuery),
+    getDocs(teacherQuery),
+  ]);
+
+  // Combine results and deduplicate by id
+  const transactionsMap = new Map();
+  
+  schoolSnapshot.docs.forEach((doc) => {
+    transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+  });
+  
+  teacherSnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  // Sort by createdAt descending
+  return Array.from(transactionsMap.values()).sort((a, b) => {
+    const dateA = a.createdAt?.seconds || 0;
+    const dateB = b.createdAt?.seconds || 0;
+    return dateB - dateA;
+  });
 };
 
 /**
@@ -345,11 +417,11 @@ export const getTransactionHistory = async (schoolId) => {
 export const getSchoolTeachers = async (schoolId) => {
   const teachersQuery = query(
     collection(db, TEACHERS_COLLECTION),
-    where('schoolId', '==', schoolId)
+    where("schoolId", "==", schoolId),
   );
 
   const querySnapshot = await getDocs(teachersQuery);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };
 
 /**
@@ -367,7 +439,7 @@ export const isSchoolAdmin = async (teacherId) => {
  * @returns {Promise<object>} - Plan configuration
  */
 export const getPlanConfig = async () => {
-  const configRef = doc(db, CONFIG_COLLECTION, 'plans');
+  const configRef = doc(db, CONFIG_COLLECTION, "plans");
   const configDoc = await getDoc(configRef);
 
   if (configDoc.exists()) {
@@ -383,7 +455,7 @@ export const getPlanConfig = async () => {
  * @returns {Promise<void>}
  */
 export const initializePlanConfig = async (planConfig) => {
-  const configRef = doc(db, CONFIG_COLLECTION, 'plans');
+  const configRef = doc(db, CONFIG_COLLECTION, "plans");
   await setDoc(configRef, planConfig);
 };
 
@@ -397,9 +469,9 @@ export const initializePlanConfig = async (planConfig) => {
 export const getPromoCode = async (code) => {
   try {
     const q = query(
-      collection(db, 'promos'),
-      where('code', '==', code),
-      where('status', '==', 'active')
+      collection(db, "promos"),
+      where("code", "==", code),
+      where("status", "==", "active"),
     );
 
     const querySnapshot = await getDocs(q);
@@ -423,7 +495,7 @@ export const getPromoCode = async (code) => {
 
     return { id: promoDoc.id, ...promoData };
   } catch (error) {
-    console.error('Error fetching promo code:', error);
+    console.error("Error fetching promo code:", error);
     return null;
   }
 };
@@ -434,12 +506,12 @@ export const getPromoCode = async (code) => {
  * @returns {Promise<string>} - Promo code ID
  */
 export const createPromoCode = async (promoData) => {
-  const promoRef = doc(collection(db, 'promos'));
+  const promoRef = doc(collection(db, "promos"));
   await setDoc(promoRef, {
     ...promoData,
-    status: 'active',
+    status: "active",
     currentUses: 0,
-    createdAt: serverTimestamp()
+    createdAt: serverTimestamp(),
   });
   return promoRef.id;
 };
@@ -450,9 +522,9 @@ export const createPromoCode = async (promoData) => {
  * @returns {Promise<void>}
  */
 export const incrementPromoUsage = async (promoCodeId) => {
-  const promoRef = doc(db, 'promos', promoCodeId);
+  const promoRef = doc(db, "promos", promoCodeId);
   await updateDoc(promoRef, {
-    currentUses: increment(1)
+    currentUses: increment(1),
   });
 };
 
@@ -461,7 +533,7 @@ export const incrementPromoUsage = async (promoCodeId) => {
  * @returns {Promise<array>} - List of promo codes
  */
 export const getPromos = async () => {
-  const q = query(collection(db, 'promos'));
+  const q = query(collection(db, "promos"));
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 };

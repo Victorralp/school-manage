@@ -1,5 +1,12 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import { doc, getDoc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "./AuthContext";
 import {
@@ -10,7 +17,7 @@ import {
   decrementUsage as decrementSchoolUsage,
   isSchoolAdmin as checkIsSchoolAdmin,
   updateSchoolPlan,
-  createTransaction
+  createTransaction,
 } from "../firebase/schoolService";
 import { processPayment } from "../utils/paymentVerification";
 import { logSubscriptionCancellation } from "../utils/subscriptionEventLogger";
@@ -45,7 +52,11 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               price: { NGN: 0, USD: 0 },
               subjectLimit: 3,
               studentLimit: 10,
-              features: ["3 subjects per teacher", "Up to 10 students per teacher", "Limited support"]
+              features: [
+                "3 subjects per teacher",
+                "Up to 10 students per teacher",
+                "Limited support",
+              ],
             },
             premium: {
               name: "Premium Plan",
@@ -53,7 +64,12 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               subjectLimit: 6,
               studentLimit: { min: 15, max: 20 },
               billingCycle: "monthly",
-              features: ["6 subjects per teacher", "15-20 students per teacher", "Priority support", "Advanced analytics"]
+              features: [
+                "6 subjects per teacher",
+                "15-20 students per teacher",
+                "Priority support",
+                "Advanced analytics",
+              ],
             },
             vip: {
               name: "VIP Plan",
@@ -61,8 +77,13 @@ export const SchoolSubscriptionProvider = ({ children }) => {
               subjectLimit: { min: 6, max: 10 },
               studentLimit: 30,
               billingCycle: "monthly",
-              features: ["6-10 subjects per teacher", "30 students per teacher", "24/7 support", "Custom features"]
-            }
+              features: [
+                "6-10 subjects per teacher",
+                "30 students per teacher",
+                "24/7 support",
+                "Custom features",
+              ],
+            },
           };
           setAvailablePlans(defaultPlans);
         }
@@ -93,32 +114,34 @@ export const SchoolSubscriptionProvider = ({ children }) => {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         const userData = userDoc.data();
 
-        if (userData?.role === 'school') {
+        if (userData?.role === "school") {
           // User is a school admin - load school data directly
           // For school role, the user.uid IS the schoolId
           setTeacherRelationship({
             teacherId: user.uid,
             schoolId: user.uid,
-            role: 'admin',
+            role: "admin",
             currentSubjects: 0,
-            currentStudents: 0
+            currentStudents: 0,
           });
           setIsAdmin(true);
-        } else if (userData?.role === 'teacher') {
+        } else if (userData?.role === "teacher") {
           // User is a teacher - get teacher-school relationship
           let relationship = await getTeacherSchoolRelationship(user.uid);
 
           // MIGRATION CASE: If no relationship exists but user has schoolId, create a temporary relationship
           if (!relationship && userData.schoolId) {
-            console.log('Migration case: Teacher has schoolId but no relationship document');
+            console.log(
+              "Migration case: Teacher has schoolId but no relationship document",
+            );
             relationship = {
               teacherId: user.uid,
               schoolId: userData.schoolId,
-              role: 'teacher',
+              role: "teacher",
               currentSubjects: 0,
               currentStudents: 0,
-              status: 'active',
-              joinedAt: new Date()
+              status: "active",
+              joinedAt: new Date(),
             };
           }
 
@@ -152,13 +175,15 @@ export const SchoolSubscriptionProvider = ({ children }) => {
   // Real-time school subscription listener
   useEffect(() => {
     if (!teacherRelationship?.schoolId) {
-      console.log('No teacherRelationship.schoolId, skipping school subscription');
+      console.log(
+        "No teacherRelationship.schoolId, skipping school subscription",
+      );
       setSchool(null);
       setCurrentPlan(null);
       return;
     }
 
-    console.log('Subscribing to school:', teacherRelationship.schoolId);
+    console.log("Subscribing to school:", teacherRelationship.schoolId);
 
     const unsubscribe = subscribeToSchool(
       teacherRelationship.schoolId,
@@ -170,7 +195,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
         }
 
         if (schoolData) {
-          console.log('School data loaded:', schoolData);
+          console.log("School data loaded:", schoolData);
           setSchool(schoolData);
 
           // Set current plan details
@@ -180,11 +205,14 @@ export const SchoolSubscriptionProvider = ({ children }) => {
 
           setError(null);
         } else {
-          console.log('No school data found for ID:', teacherRelationship.schoolId);
+          console.log(
+            "No school data found for ID:",
+            teacherRelationship.schoolId,
+          );
           setSchool(null);
           setCurrentPlan(null);
         }
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -196,24 +224,24 @@ export const SchoolSubscriptionProvider = ({ children }) => {
       return;
     }
 
-    const teacherRef = doc(db, 'teachers', user.uid);
+    const teacherRef = doc(db, "teachers", user.uid);
     const unsubscribe = onSnapshot(
       teacherRef,
       (docSnapshot) => {
         if (docSnapshot.exists()) {
           const teacherData = docSnapshot.data();
           // Update teacherRelationship with latest usage data
-          setTeacherRelationship(prev => ({
+          setTeacherRelationship((prev) => ({
             ...prev,
             currentSubjects: teacherData.currentSubjects || 0,
             currentStudents: teacherData.currentStudents || 0,
-            updatedAt: teacherData.updatedAt
+            updatedAt: teacherData.updatedAt,
           }));
         }
       },
       (error) => {
-        console.error('Error listening to teacher usage:', error);
-      }
+        console.error("Error listening to teacher usage:", error);
+      },
     );
 
     return () => unsubscribe();
@@ -228,7 +256,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
 
   // Helper function to get actual limit value (handles ranges)
   const getActualLimit = useCallback((limitValue) => {
-    if (typeof limitValue === 'object' && limitValue.max) {
+    if (typeof limitValue === "object" && limitValue.max) {
       return limitValue.max;
     }
     return limitValue;
@@ -262,7 +290,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
     }
     return {
       subjects: teacherRelationship.currentSubjects || 0,
-      students: teacherRelationship.currentStudents || 0
+      students: teacherRelationship.currentStudents || 0,
     };
   }, [teacherRelationship]);
 
@@ -275,72 +303,84 @@ export const SchoolSubscriptionProvider = ({ children }) => {
   }, [currentPlan]);
 
   // Increment usage count
-  const incrementUsage = useCallback(async (type) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const incrementUsage = useCallback(
+    async (type) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
 
-    try {
-      await incrementSchoolUsage(user.uid, type);
-    } catch (err) {
-      console.error(`Error incrementing ${type} usage:`, err);
-      throw new Error(`Failed to update ${type} count`);
-    }
-  }, [user]);
+      try {
+        await incrementSchoolUsage(user.uid, type);
+      } catch (err) {
+        console.error(`Error incrementing ${type} usage:`, err);
+        throw new Error(`Failed to update ${type} count`);
+      }
+    },
+    [user],
+  );
 
   // Decrement usage count
-  const decrementUsage = useCallback(async (type) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
+  const decrementUsage = useCallback(
+    async (type) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
 
-    try {
-      await decrementSchoolUsage(user.uid, type);
-    } catch (err) {
-      console.error(`Error decrementing ${type} usage:`, err);
-      throw new Error(`Failed to update ${type} count`);
-    }
-  }, [user]);
+      try {
+        await decrementSchoolUsage(user.uid, type);
+      } catch (err) {
+        console.error(`Error decrementing ${type} usage:`, err);
+        throw new Error(`Failed to update ${type} count`);
+      }
+    },
+    [user],
+  );
 
   // Check if adding new item would exceed school-wide limit
-  const checkLimit = useCallback((type) => {
-    if (!school || !currentPlan) {
-      return false;
-    }
+  const checkLimit = useCallback(
+    (type) => {
+      if (!school || !currentPlan) {
+        return false;
+      }
 
-    const usage = type === 'subject' ? subjectUsage : studentUsage;
+      const usage = type === "subject" ? subjectUsage : studentUsage;
 
-    // Block new registrations if school is in grace period
-    if (school.status === 'grace_period') {
-      return false;
-    }
+      // Block new registrations if school is in grace period
+      if (school.status === "grace_period") {
+        return false;
+      }
 
-    // Block new registrations if school's current usage already exceeds the limit
-    if (usage.current >= usage.limit) {
-      return false;
-    }
+      // Block new registrations if school's current usage already exceeds the limit
+      if (usage.current >= usage.limit) {
+        return false;
+      }
 
-    return usage.current < usage.limit;
-  }, [school, currentPlan, subjectUsage, studentUsage]);
+      return usage.current < usage.limit;
+    },
+    [school, currentPlan, subjectUsage, studentUsage],
+  );
 
   // Helper methods
   const canAddSubject = useCallback(() => {
-    return checkLimit('subject');
+    return checkLimit("subject");
   }, [checkLimit]);
 
   const canAddStudent = useCallback(() => {
-    return checkLimit('student');
+    return checkLimit("student");
   }, [checkLimit]);
 
   // Check if near limit (80% threshold)
-  const isNearLimit = useCallback((type) => {
-    const usage = type === 'subject' ? subjectUsage : studentUsage;
-    return usage.percentage >= 80;
-  }, [subjectUsage, studentUsage]);
+  const isNearLimit = useCallback(
+    (type) => {
+      const usage = type === "subject" ? subjectUsage : studentUsage;
+      return usage.percentage >= 80;
+    },
+    [subjectUsage, studentUsage],
+  );
 
   // Check if subscription is in grace period
   const isInGracePeriod = useCallback(() => {
-    return school?.status === 'grace_period';
+    return school?.status === "grace_period";
   }, [school]);
 
   // Check if school's current usage exceeds limits (after downgrade)
@@ -356,89 +396,98 @@ export const SchoolSubscriptionProvider = ({ children }) => {
   }, [school, currentPlan, subjectUsage, studentUsage]);
 
   // Validate plan upgrade/downgrade (admin only)
-  const validatePlanChange = useCallback((newPlanTier) => {
-    if (!isAdmin) {
-      return { valid: false, message: "Only school admins can change plans" };
-    }
-
-    if (!availablePlans || !availablePlans[newPlanTier]) {
-      return { valid: false, message: "Invalid plan tier" };
-    }
-
-    if (!school) {
-      return { valid: false, message: "No school subscription found" };
-    }
-
-    const currentTier = school.planTier;
-    if (currentTier === newPlanTier) {
-      return { valid: false, message: "Already on this plan" };
-    }
-
-    return { valid: true, message: "Plan change is valid" };
-  }, [isAdmin, availablePlans, school]);
-
-  // Upgrade plan (initiates payment flow) - admin only
-  const upgradePlan = useCallback(async (planTier, currency = 'NGN') => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    if (!isAdmin) {
-      throw new Error("Only school admins can upgrade plans");
-    }
-
-    const validation = validatePlanChange(planTier);
-    if (!validation.valid) {
-      throw new Error(validation.message);
-    }
-
-    const newPlan = availablePlans[planTier];
-    if (!newPlan) {
-      throw new Error("Plan not found");
-    }
-
-    // Return payment details for the payment component to handle
-    return {
-      planTier,
-      planName: newPlan.name,
-      amount: newPlan.price[currency],
-      currency,
-      features: newPlan.features,
-      subjectLimit: getActualLimit(newPlan.subjectLimit),
-      studentLimit: getActualLimit(newPlan.studentLimit),
-      schoolId: school.id,
-      schoolName: school.name
-    };
-  }, [user, isAdmin, availablePlans, school, validatePlanChange, getActualLimit]);
-
-  // Process payment after successful Monnify transaction (admin only)
-  const handlePaymentSuccess = useCallback(async (paymentData) => {
-    if (!user) {
-      throw new Error("User not authenticated");
-    }
-
-    if (!isAdmin) {
-      throw new Error("Only school admins can process payments");
-    }
-
-    if (!school) {
-      throw new Error("No school found");
-    }
-
-    try {
-      // Process payment with school ID instead of teacher ID
-      const result = await processPayment(school.id, paymentData, true); // true flag for school payment
-
-      if (!result.success) {
-        throw new Error(result.error || "Payment processing failed");
+  const validatePlanChange = useCallback(
+    (newPlanTier) => {
+      if (!isAdmin) {
+        return { valid: false, message: "Only school admins can change plans" };
       }
 
-      return result;
-    } catch (err) {
-      console.error("Error processing payment:", err);
-      throw err;
-    }
-  }, [user, isAdmin, school]);
+      if (!availablePlans || !availablePlans[newPlanTier]) {
+        return { valid: false, message: "Invalid plan tier" };
+      }
+
+      if (!school) {
+        return { valid: false, message: "No school subscription found" };
+      }
+
+      const currentTier = school.planTier;
+      if (currentTier === newPlanTier) {
+        return { valid: false, message: "Already on this plan" };
+      }
+
+      return { valid: true, message: "Plan change is valid" };
+    },
+    [isAdmin, availablePlans, school],
+  );
+
+  // Upgrade plan (initiates payment flow) - admin only
+  const upgradePlan = useCallback(
+    async (planTier, currency = "NGN") => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      if (!isAdmin) {
+        throw new Error("Only school admins can upgrade plans");
+      }
+
+      const validation = validatePlanChange(planTier);
+      if (!validation.valid) {
+        throw new Error(validation.message);
+      }
+
+      const newPlan = availablePlans[planTier];
+      if (!newPlan) {
+        throw new Error("Plan not found");
+      }
+
+      // Return payment details for the payment component to handle
+      return {
+        planTier,
+        planName: newPlan.name,
+        amount: newPlan.price[currency],
+        currency,
+        features: newPlan.features,
+        subjectLimit: getActualLimit(newPlan.subjectLimit),
+        studentLimit: getActualLimit(newPlan.studentLimit),
+        schoolId: school.id,
+        schoolName: school.name,
+      };
+    },
+    [user, isAdmin, availablePlans, school, validatePlanChange, getActualLimit],
+  );
+
+  // Process payment after successful Monnify transaction (admin only)
+  const handlePaymentSuccess = useCallback(
+    async (paymentData) => {
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+
+      if (!isAdmin) {
+        throw new Error("Only school admins can process payments");
+      }
+
+      if (!school) {
+        throw new Error("No school found");
+      }
+
+      try {
+        // Process payment with school ID instead of teacher ID
+        const result = await processPayment(school.id, paymentData, true); // true flag for school payment
+
+        if (!result.success) {
+          throw new Error(result.error || "Payment processing failed");
+        }
+
+        return result;
+      } catch (err) {
+        console.error("Error processing payment:", err);
+        throw err;
+      }
+    },
+    [user, isAdmin, school],
+  );
 
   // Cancel subscription (admin only)
   const cancelSubscription = useCallback(async () => {
@@ -454,7 +503,7 @@ export const SchoolSubscriptionProvider = ({ children }) => {
       throw new Error("No school subscription found");
     }
 
-    if (school.planTier === 'free') {
+    if (school.planTier === "free") {
       throw new Error("Cannot cancel free plan");
     }
 
@@ -463,15 +512,22 @@ export const SchoolSubscriptionProvider = ({ children }) => {
 
       // Update subscription to mark for cancellation
       await updateDoc(schoolRef, {
-        status: 'grace_period',
+        status: "grace_period",
         cancelledAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
 
       // Log cancellation event
-      await logSubscriptionCancellation(school.id, school.planTier, 'admin_requested');
+      await logSubscriptionCancellation(
+        school.id,
+        school.planTier,
+        "admin_requested",
+      );
 
-      return { success: true, message: "School subscription marked for cancellation" };
+      return {
+        success: true,
+        message: "School subscription marked for cancellation",
+      };
     } catch (err) {
       console.error("Error cancelling subscription:", err);
       throw new Error("Failed to cancel subscription");
@@ -513,7 +569,9 @@ export const SchoolSubscriptionProvider = ({ children }) => {
 export const useSchoolSubscription = () => {
   const context = useContext(SchoolSubscriptionContext);
   if (!context) {
-    throw new Error("useSchoolSubscription must be used within a SchoolSubscriptionProvider");
+    throw new Error(
+      "useSchoolSubscription must be used within a SchoolSubscriptionProvider",
+    );
   }
   return context;
 };

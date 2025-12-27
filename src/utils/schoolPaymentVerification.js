@@ -1,34 +1,55 @@
 /**
  * School Payment Verification
- * Handles payment verification for school-based subscriptions
+ * Handles payment verification for school-based subscriptions using Monnify
  */
 
-import { updateSchoolPlan, createTransaction, updateTransaction } from '../firebase/schoolService';
-import { PLAN_CONFIG, getActualLimit } from '../firebase/subscriptionModels';
+import {
+  updateSchoolPlan,
+  createTransaction,
+  updateTransaction,
+} from "../firebase/schoolService";
+import { PLAN_CONFIG, getActualLimit } from "../firebase/subscriptionModels";
+import {
+  getMonnifyAuthHeader,
+  getMonnifyApiBaseUrl,
+  getMonnifyApiKey,
+  getMonnifyContractCode,
+  isMonnifyTestMode,
+  generateTransactionReference,
+  formatCurrency,
+} from "./monnifyConfig";
 
 /**
  * Process payment for school subscription
  * @param {string} schoolId - The school's ID
- * @param {object} paymentData - Payment data from Paystack
+ * @param {object} paymentData - Payment data from Monnify
  * @param {boolean} isSchoolPayment - Flag to indicate school payment (default: true)
  * @returns {Promise<object>} - Processing result
  */
-export async function processSchoolPayment(schoolId, paymentData, isSchoolPayment = true) {
+export async function processSchoolPayment(
+  schoolId,
+  paymentData,
+  isSchoolPayment = true,
+) {
   try {
     const {
       reference,
+      transactionReference,
       planTier,
       amount,
       currency,
       paidByUserId,
-      paystackResponse
+      monnifyResponse,
     } = paymentData;
 
-    // Verify payment with Paystack
-    const verificationResult = await verifyPaystackTransaction(reference);
+    // Use transactionReference for Monnify verification
+    const monnifyRef = transactionReference || reference;
+
+    // Verify payment with Monnify
+    const verificationResult = await verifyMonnifyTransaction(monnifyRef);
 
     if (!verificationResult.success) {
-      throw new Error('Payment verification failed');
+      throw new Error("Payment verification failed");
     }
 
     // Create transaction record
@@ -38,15 +59,16 @@ export async function processSchoolPayment(schoolId, paymentData, isSchoolPaymen
       planTier,
       amount,
       currency,
-      status: 'pending',
-      paystackReference: reference,
-      paystackResponse: verificationResult.data
+      status: "pending",
+      monnifyReference: monnifyRef,
+      monnifyResponse: verificationResult.data,
+      paymentProvider: "monnify",
     });
 
     // Get plan configuration
     const plan = PLAN_CONFIG[planTier];
     if (!plan) {
-      throw new Error('Invalid plan tier');
+      throw new Error("Invalid plan tier");
     }
 
     // Calculate expiry date (30 days from now for monthly plans)
@@ -61,131 +83,133 @@ export async function processSchoolPayment(schoolId, paymentData, isSchoolPaymen
       currency,
       expiryDate,
       lastPaymentDate: new Date(),
-      paystackCustomerCode: verificationResult.data.customer?.customer_code || null,
-      paystackSubscriptionCode: verificationResult.data.subscription?.subscription_code || null
+      monnifyCustomerEmail: verificationResult.data.customerEmail || null,
+      monnifyTransactionReference: monnifyRef,
     });
 
     // Update transaction status
-    await updateTransaction(transactionId, 'success', verificationResult.data);
+    await updateTransaction(transactionId, "success", verificationResult.data);
 
     return {
       success: true,
       transactionId,
-      message: 'Payment processed successfully',
+      message: "Payment processed successfully",
       schoolId,
       planTier,
-      expiryDate
+      expiryDate,
     };
-
   } catch (error) {
-    console.error('Error processing school payment:', error);
+    console.error("Error processing school payment:", error);
     return {
       success: false,
       error: error.message,
-      message: 'Payment processing failed'
+      message: "Payment processing failed",
     };
   }
 }
 
 /**
- * Verify transaction with Paystack
- * @param {string} reference - Paystack transaction reference
+ * Verify transaction with Monnify
+ * @param {string} transactionReference - Monnify transaction reference
  * @returns {Promise<object>} - Verification result
  */
-async function verifyPaystackTransaction(reference) {
+async function verifyMonnifyTransaction(transactionReference) {
   try {
-    const secretKey = import.meta.env.VITE_PAYSTACK_SECRET_KEY;
+    const authHeader = getMonnifyAuthHeader();
+    const baseUrl = getMonnifyApiBaseUrl();
+    const url = `${baseUrl}/api/v2/transactions/${encodeURIComponent(transactionReference)}`;
 
-    if (!secretKey) {
-      throw new Error('Paystack secret key not configured');
-    }
+    console.log("Verifying Monnify Transaction:", {
+      transactionReference,
+      baseUrl,
+      url,
+    });
 
-    const response = await fetch(
-      `https://api.paystack.co/transaction/verify/${reference}`,
-      {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${secretKey}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+    });
 
     const result = await response.json();
 
-    if (!response.ok || !result.status) {
-      throw new Error(result.message || 'Verification failed');
+    if (!response.ok || !result.requestSuccessful) {
+      throw new Error(result.responseMessage || "Verification failed");
     }
 
     // Check if payment was successful
-    if (result.data.status !== 'success') {
-      throw new Error('Payment was not successful');
+    if (result.responseBody.paymentStatus !== "PAID") {
+      throw new Error(
+        `Payment status is ${result.responseBody.paymentStatus}, expected PAID`,
+      );
     }
 
     return {
       success: true,
-      data: result.data
+      data: result.responseBody,
     };
-
   } catch (error) {
-    console.error('Error verifying Paystack transaction:', error);
+    console.error("Error verifying Monnify transaction:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
 
 /**
- * Handle payment webhook from Paystack
- * This should be called from a backend endpoint
- * @param {object} webhookData - Webhook data from Paystack
+ * Handle payment webhook from Monnify
+ * This should be called from a backend endpoint (Cloud Function)
+ * @param {object} webhookData - Webhook data from Monnify
  * @returns {Promise<object>} - Processing result
  */
 export async function handlePaymentWebhook(webhookData) {
   try {
-    const { event, data } = webhookData;
+    const { eventType, eventData } = webhookData;
 
-    // Only process successful charges
-    if (event !== 'charge.success') {
+    // Only process successful transaction events
+    if (eventType !== "SUCCESSFUL_TRANSACTION") {
       return {
         success: true,
-        message: 'Event ignored'
+        message: "Event ignored",
       };
     }
 
-    // Extract metadata
-    const { schoolId, planTier, paidByUserId } = data.metadata || {};
+    // Extract metadata from the transaction
+    const metaData = eventData.metaData || {};
+    const { schoolId, planTier, paidByUserId } = metaData;
 
     if (!schoolId || !planTier || !paidByUserId) {
-      throw new Error('Missing required metadata');
+      throw new Error("Missing required metadata");
     }
 
     // Process the payment
     const result = await processSchoolPayment(schoolId, {
-      reference: data.reference,
+      reference: eventData.paymentReference,
+      transactionReference: eventData.transactionReference,
       planTier,
-      amount: data.amount / 100, // Paystack amounts are in kobo/cents
-      currency: data.currency,
+      amount: eventData.amountPaid,
+      currency: eventData.currency,
       paidByUserId,
-      paystackResponse: data
+      monnifyResponse: eventData,
     });
 
     return result;
-
   } catch (error) {
-    console.error('Error handling payment webhook:', error);
+    console.error("Error handling payment webhook:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
 
 /**
- * Initialize Paystack payment for school upgrade
+ * Initialize Monnify payment configuration for school upgrade
  * @param {object} paymentDetails - Payment details
- * @returns {object} - Paystack configuration
+ * @returns {object} - Monnify configuration
  */
 export function initializeSchoolPayment(paymentDetails) {
   const {
@@ -195,21 +219,31 @@ export function initializeSchoolPayment(paymentDetails) {
     amount,
     currency,
     paidByUserId,
-    email
+    email,
+    customerName,
   } = paymentDetails;
 
-  const publicKey = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
+  const apiKey = getMonnifyApiKey();
+  const contractCode = getMonnifyContractCode();
 
-  if (!publicKey) {
-    throw new Error('Paystack public key not configured');
+  if (!apiKey || !contractCode) {
+    throw new Error(
+      "Monnify configuration not complete. Please check API key and contract code.",
+    );
   }
 
+  const reference = generateTransactionReference(schoolId, planTier);
+
   return {
-    publicKey,
-    email,
-    amount: amount * 100, // Convert to kobo/cents
+    amount,
     currency,
-    ref: `${schoolId}_${Date.now()}`,
+    reference,
+    customerFullName: customerName || schoolName,
+    customerEmail: email,
+    apiKey,
+    contractCode,
+    paymentDescription: `${planTier.charAt(0).toUpperCase() + planTier.slice(1)} Plan - ${schoolName}`,
+    isTestMode: isMonnifyTestMode(),
     metadata: {
       schoolId,
       schoolName,
@@ -217,24 +251,24 @@ export function initializeSchoolPayment(paymentDetails) {
       paidByUserId,
       custom_fields: [
         {
-          display_name: 'School Name',
-          variable_name: 'school_name',
-          value: schoolName
+          display_name: "School Name",
+          variable_name: "school_name",
+          value: schoolName,
         },
         {
-          display_name: 'Plan',
-          variable_name: 'plan_tier',
-          value: planTier
-        }
-      ]
+          display_name: "Plan",
+          variable_name: "plan_tier",
+          value: planTier,
+        },
+      ],
     },
-    onSuccess: (reference) => {
-      console.log('Payment successful:', reference);
-      return reference;
+    onSuccess: (response) => {
+      console.log("Payment successful:", response);
+      return response;
     },
     onClose: () => {
-      console.log('Payment modal closed');
-    }
+      console.log("Payment modal closed");
+    },
   };
 }
 
@@ -252,7 +286,10 @@ export function calculateProratedAmount(currentPlan, newPlan, expiryDate) {
   }
 
   const now = new Date();
-  const daysRemaining = Math.max(0, Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)));
+  const daysRemaining = Math.max(
+    0,
+    Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)),
+  );
   const daysInMonth = 30;
 
   // Calculate unused portion of current plan
@@ -263,3 +300,21 @@ export function calculateProratedAmount(currentPlan, newPlan, expiryDate) {
 
   return Math.max(0, proratedAmount);
 }
+
+/**
+ * Get formatted payment amount for display
+ * @param {number} amount - Amount to format
+ * @param {string} currency - Currency code (NGN or USD)
+ * @returns {string} - Formatted amount string
+ */
+export function getFormattedAmount(amount, currency = "NGN") {
+  return formatCurrency(amount, currency);
+}
+
+export default {
+  processSchoolPayment,
+  handlePaymentWebhook,
+  initializeSchoolPayment,
+  calculateProratedAmount,
+  getFormattedAmount,
+};
