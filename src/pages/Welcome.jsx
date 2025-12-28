@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/Card";
 import Button from "../components/Button";
@@ -6,6 +6,20 @@ import PricingSection from "../components/PricingSection";
 
 const Welcome = () => {
   const navigate = useNavigate();
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  // Listen for Ctrl+Shift+A to toggle admin button visibility
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        setShowAdmin((prev) => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-900 overflow-hidden relative selection:bg-indigo-500 selection:text-white">
@@ -91,7 +105,7 @@ const Welcome = () => {
         </div>
 
         {/* Floating Cards (Quick Actions) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-24 relative max-w-4xl mx-auto">
+        <div className="flex justify-center gap-6 mb-24 relative max-w-4xl mx-auto">
 
 
           {/* Card 2 */}
@@ -108,19 +122,21 @@ const Welcome = () => {
             <p className="text-slate-400 text-sm">Access your secure dashboard securely.</p>
           </div>
 
-          {/* Card 3 */}
-          <div
-            onClick={() => navigate("/admin-setup")}
-            className="group p-6 rounded-3xl bg-slate-800/40 backdrop-blur-xl border border-white/5 hover:border-purple-500/30 transition-all duration-300 hover:transform hover:-translate-y-2 cursor-pointer"
-          >
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-              <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-              </svg>
+          {/* Card 3 - Admin (Hidden by default, toggle with Ctrl+Shift+A) */}
+          {showAdmin && (
+            <div
+              onClick={() => navigate("/admin-setup")}
+              className="group p-6 rounded-3xl bg-slate-800/40 backdrop-blur-xl border border-white/5 hover:border-purple-500/30 transition-all duration-300 hover:transform hover:-translate-y-2 cursor-pointer"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-fuchsia-600 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Admin</h3>
+              <p className="text-slate-400 text-sm">System configuration and setup tools.</p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">Admin</h3>
-            <p className="text-slate-400 text-sm">System configuration and setup tools.</p>
-          </div>
+          )}
 
 
         </div>
