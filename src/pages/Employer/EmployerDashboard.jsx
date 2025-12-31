@@ -35,7 +35,7 @@ import {
 } from "../../firebase/subjectService";
 import { registerStudent, deactivateStudent } from "../../firebase/studentService";
 
-const TeacherDashboard = () => {
+const EmployerDashboard = () => {
   const { user, userData } = useAuth();
   const {
     checkLimit,
@@ -49,7 +49,7 @@ const TeacherDashboard = () => {
     teacherUsage,
     questionLimit
   } = useSchoolSubscription();
-  const [exams, setExams] = useState([]);
+  const [interviews, setInterviews] = useState([]);
   const [students, setStudents] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ const TeacherDashboard = () => {
   const [alert, setAlert] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedExam, setSelectedExam] = useState(null);
+  const [selectedInterview, setSelectedInterview] = useState(null);
   const [showMathTools, setShowMathTools] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [limitModalType, setLimitModalType] = useState(null);
@@ -68,11 +68,11 @@ const TeacherDashboard = () => {
   const [registeredStudentId, setRegisteredStudentId] = useState(null);
 
   // Form states
-  const [examForm, setExamForm] = useState({
+  const [interviewForm, setinterviewForm] = useState({
     title: "",
     subject: "",
     timeLimit: "",
-    examDate: "",
+    interviewDate: "",
     description: "",
   });
   const [questions, setQuestions] = useState([]);
@@ -106,17 +106,17 @@ const TeacherDashboard = () => {
   const fetchTeacherData = async () => {
     setLoading(true);
     try {
-      // Fetch exams created by this teacher
-      const examsQuery = query(
-        collection(db, "exams"),
+      // Fetch Interviews created by this teacher
+      const interviewsQuery = query(
+        collection(db, "interviews"),
         where("teacherId", "==", user.uid),
       );
-      const examsSnapshot = await getDocs(examsQuery);
-      const examsData = examsSnapshot.docs.map((doc) => ({
+      const interviewsSnapshot = await getDocs(interviewsQuery);
+      const interviewsData = interviewsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setExams(examsData);
+      setInterviews(interviewsData);
 
       // Fetch students from the same school
       if (userData?.schoolId) {
@@ -134,9 +134,9 @@ const TeacherDashboard = () => {
         setStudents(studentsData);
       }
 
-      // Fetch results for this teacher's exams
-      const examIds = examsData.map((e) => e.id);
-      if (examIds.length > 0) {
+      // Fetch results for this employer's interviews
+      const interviewIds = interviewsData.map((e) => e.id);
+      if (interviewIds.length > 0) {
         const resultsQuery = query(collection(db, "results"));
         const resultsSnapshot = await getDocs(resultsQuery);
         const resultsData = resultsSnapshot.docs
@@ -144,7 +144,7 @@ const TeacherDashboard = () => {
             id: doc.id,
             ...doc.data(),
           }))
-          .filter((result) => examIds.includes(result.examId));
+          .filter((result) => interviewIds.includes(result.interviewId));
         setResults(resultsData);
       }
     } catch (error) {
@@ -160,9 +160,9 @@ const TeacherDashboard = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const handleExamFormChange = (e) => {
-    setExamForm({
-      ...examForm,
+  const handleinterviewFormChange = (e) => {
+    setinterviewForm({
+      ...interviewForm,
       [e.target.name]: e.target.value,
     });
   };
@@ -232,10 +232,10 @@ const TeacherDashboard = () => {
     showAlert("success", "Question removed");
   };
 
-  const handleCreateExam = async () => {
+  const handleCreateInterview = async () => {
     // Validation
-    if (!examForm.title.trim()) {
-      showAlert("error", "Please enter exam title");
+    if (!interviewForm.title.trim()) {
+      showAlert("error", "Please enter interview title");
       return;
     }
 
@@ -244,7 +244,7 @@ const TeacherDashboard = () => {
       return;
     }
 
-    if (!examForm.timeLimit || examForm.timeLimit <= 0) {
+    if (!interviewForm.timeLimit || interviewForm.timeLimit <= 0) {
       showAlert("error", "Please enter valid time limit");
       return;
     }
@@ -257,55 +257,55 @@ const TeacherDashboard = () => {
     setLoading(true);
 
     try {
-      // Generate unique exam code (6 characters)
-      const examCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      // Generate unique Interview Code (6 characters)
+      const interviewCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
-      // Create exam document
-      const examRef = await addDoc(collection(db, "exams"), {
-        title: examForm.title,
+      // Create Interview document
+      const interviewRef = await addDoc(collection(db, "interviews"), {
+        title: interviewForm.title,
         subject: selectedSubject.name,
         subjectId: selectedSubject.id,
         subjectCode: selectedSubject.code,
-        timeLimit: parseInt(examForm.timeLimit),
-        examDate: examForm.examDate || null,
-        description: examForm.description,
+        timeLimit: parseInt(interviewForm.timeLimit),
+        interviewDate: interviewForm.interviewDate || null,
+        description: interviewForm.description,
         teacherId: user.uid,
         teacherName: userData?.name || "Unknown",
         schoolId: userData?.schoolId || null,
         createdAt: new Date(),
         totalQuestions: questions.length,
-        examCode: examCode,
+        interviewCode: interviewCode,
       });
 
       // Create questions subcollection
       for (let i = 0; i < questions.length; i++) {
-        await addDoc(collection(db, "exams", examRef.id, "questions"), {
+        await addDoc(collection(db, "interviews", interviewRef.id, "questions"), {
           ...questions[i],
           questionNumber: i + 1,
         });
       }
 
-      // Increment subject exam count
+      // Increment subject interview count
       await incrementSubjectExamCount(selectedSubject.id);
 
-      showAlert("success", `Exam created successfully! Code: ${examCode}`);
+      showAlert("success", `Interview created successfully! Code: ${interviewCode}`);
       setShowCreateModal(false);
       resetForm();
       fetchTeacherData();
     } catch (error) {
-      console.error("Error creating exam:", error);
-      showAlert("error", "Failed to create exam");
+      console.error("Error creating interview:", error);
+      showAlert("error", "Failed to Create Interview");
     } finally {
       setLoading(false);
     }
   };
 
   const resetForm = () => {
-    setExamForm({
+    setinterviewForm({
       title: "",
       subject: "",
       timeLimit: "",
-      examDate: "",
+      interviewDate: "",
       description: "",
     });
     setQuestions([]);
@@ -337,9 +337,9 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleDeleteSubject = async (subjectId, examCount) => {
-    if (examCount > 0) {
-      showAlert('error', 'Cannot delete subject with existing exams. Delete exams first.');
+  const handleDeleteSubject = async (subjectId, interviewCount) => {
+    if (interviewCount > 0) {
+      showAlert('error', 'Cannot delete subject with existing interviews. Delete interviews first.');
       return;
     }
     if (window.confirm("Are you sure you want to delete this subject?")) {
@@ -358,7 +358,7 @@ const TeacherDashboard = () => {
     if (!checkLimit('student')) {
       setLimitModalType('student');
       setShowLimitModal(true);
-      throw new Error('Student limit reached');
+      throw new Error('Applicant limit reached');
     }
 
     try {
@@ -386,7 +386,7 @@ const TeacherDashboard = () => {
       try {
         await deactivateStudent(studentId);
         await decrementUsage('student');
-        showAlert("success", "Student removed successfully");
+        showAlert("success", "Applicant removed successfully");
         fetchTeacherData();
       } catch (error) {
         console.error("Error removing student:", error);
@@ -395,71 +395,71 @@ const TeacherDashboard = () => {
     }
   };
 
-  const handleDeleteExam = async (exam) => {
-    if (window.confirm("Are you sure you want to delete this exam?")) {
+  const handleDeleteInterview = async (interview) => {
+    if (window.confirm("Are you sure you want to delete this interview?")) {
       try {
-        const examId = typeof exam === 'string' ? exam : exam.id;
+        const interviewId = typeof interview === 'string' ? interview : interview.id;
 
         // Delete questions subcollection
         const questionsSnapshot = await getDocs(
-          collection(db, "exams", examId, "questions"),
+          collection(db, "interviews", interviewId, "questions"),
         );
         for (const doc of questionsSnapshot.docs) {
           await deleteDoc(doc.ref);
         }
 
-        // Delete exam document
-        await deleteDoc(doc(db, "exams", examId));
+        // Delete interview document
+        await deleteDoc(doc(db, "interviews", interviewId));
 
-        // Decrement subject exam count if exam has subjectId
-        if (exam.subjectId) {
-          await decrementSubjectExamCount(exam.subjectId);
+        // Decrement subject interview count if interview has subjectId
+        if (interview.subjectId) {
+          await decrementSubjectExamCount(interview.subjectId);
         }
 
-        showAlert("success", "Exam deleted successfully");
+        showAlert("success", "Interview deleted successfully");
         fetchTeacherData();
       } catch (error) {
-        console.error("Error deleting exam:", error);
-        showAlert("error", "Failed to delete exam");
+        console.error("Error deleting interview:", error);
+        showAlert("error", "Failed to delete interview");
       }
     }
   };
 
-  const handleViewExam = async (exam) => {
+  const handleViewInterview = async (interview) => {
     try {
       const questionsSnapshot = await getDocs(
-        collection(db, "exams", exam.id, "questions"),
+        collection(db, "interviews", interview.id, "questions"),
       );
       const questionsData = questionsSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
 
-      setSelectedExam({ ...exam, questions: questionsData });
+      setSelectedInterview({ ...interview, questions: questionsData });
       setShowViewModal(true);
     } catch (error) {
-      console.error("Error fetching exam details:", error);
-      showAlert("error", "Failed to load exam details");
+      console.error("Error fetching interview details:", error);
+      showAlert("error", "Failed to load interview details");
     }
   };
 
-  const examColumns = [
+  const interviewColumns = [
     { header: "Title", accessor: "title" },
     { header: "Subject", accessor: "subject" },
     {
-      header: "Exam Code",
+      header: "Interview Code",
       render: (row) => (
         <div className="flex items-center gap-2">
           <code className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono text-sm font-bold">
-            {row.examCode || row.id.substring(0, 6).toUpperCase()}
+            {row.interviewCode || row.id.substring(0, 6).toUpperCase()}
           </code>
           <button
             onClick={() => {
-              navigator.clipboard.writeText(row.examCode || row.id);
-              showAlert("success", "Exam code copied!");
+              navigator.clipboard.writeText(row.interviewCode || row.id);
+              showAlert("success", "Interview Code copied!");
             }}
             className="text-gray-400 hover:text-blue-600 transition-colors"
-            title="Copy exam code"
+            title="Copy Interview Code"
           >
             <svg
               className="h-4 w-4"
@@ -494,17 +494,17 @@ const TeacherDashboard = () => {
 
   const resultColumns = [
     {
-      header: "Student",
+      header: "Applicant",
       render: (row) => {
         const student = students.find((s) => s.id === row.studentId);
         return student?.name || "Unknown";
       },
     },
     {
-      header: "Exam",
+      header: "Interview",
       render: (row) => {
-        const exam = exams.find((e) => e.id === row.examId);
-        return exam?.title || "Unknown";
+        const interview = interviews.find((e) => e.id === row.interviewId);
+        return interview?.title || "Unknown";
       },
     },
     {
@@ -531,7 +531,7 @@ const TeacherDashboard = () => {
   ];
 
   // Calculate statistics
-  const totalExams = exams.length;
+  const totalInterviews = interviews.length;
   const totalSubmissions = results.length;
   const averageScore =
     results.length > 0
@@ -613,7 +613,7 @@ const TeacherDashboard = () => {
   }
 
   return (
-    <Layout title="Teacher Dashboard">
+    <Layout title="Employer Dashboard">
       {alert && (
         <Alert
           type={alert.type}
@@ -627,7 +627,7 @@ const TeacherDashboard = () => {
       <LimitWarning
         onUpgradeClick={() => {
           // Navigate to subscription settings
-          window.location.href = '/teacher/subscription';
+          window.location.href = '/employer/subscription';
         }}
       />
 
@@ -641,9 +641,9 @@ const TeacherDashboard = () => {
         <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium">Total Exams</p>
-              <p className="text-3xl font-bold mt-2">{totalExams}</p>
-              <p className="text-blue-100 text-xs mt-1">Exams created</p>
+              <p className="text-blue-100 text-sm font-medium">Total Interviews</p>
+              <p className="text-3xl font-bold mt-2">{totalInterviews}</p>
+              <p className="text-blue-100 text-xs mt-1">Interviews created</p>
             </div>
             <svg
               className="h-12 w-12 text-blue-200"
@@ -712,7 +712,7 @@ const TeacherDashboard = () => {
             <div>
               <p className="text-orange-100 text-sm font-medium">Pass Rate</p>
               <p className="text-3xl font-bold mt-2">{passRate}%</p>
-              <p className="text-orange-100 text-xs mt-1">Students passing</p>
+              <p className="text-orange-100 text-xs mt-1">Applicants passing</p>
             </div>
             <svg
               className="h-12 w-12 text-orange-200"
@@ -734,9 +734,9 @@ const TeacherDashboard = () => {
       {/* Action Button */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Your Exams</h3>
+          <h3 className="text-lg font-semibold text-gray-900">Your Interviews</h3>
           <p className="text-sm text-gray-600">
-            Create and manage your exams. Each exam counts as one subject toward your school's plan limit.
+            Create and manage Your Interviews. Each interview counts as one subject toward your school's plan limit.
           </p>
         </div>
         <Button
@@ -763,7 +763,7 @@ const TeacherDashboard = () => {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          {subjects.length === 0 ? 'Register First Subject' : 'Create New Exam'}
+          {subjects.length === 0 ? 'Register First Subject' : 'Create New Interview'}
         </Button>
       </div>
 
@@ -771,7 +771,7 @@ const TeacherDashboard = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {["overview", "subjects", "exams", "results", "students"].map((tab) => (
+            {["overview", "subjects", "interviews", "results", "applicants"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -790,25 +790,25 @@ const TeacherDashboard = () => {
       {/* Tab Content */}
       {activeTab === "overview" && (
         <div className="space-y-6">
-          <Card title="Recent Exams" subtitle="Your recently created exams">
+          <Card title="Recent Interviews" subtitle="Your recently created interviews">
             <Table
-              columns={examColumns}
-              data={exams.slice(0, 5)}
+              columns={interviewColumns}
+              data={interviews.slice(0, 5)}
               loading={loading}
-              emptyMessage="No exams created yet"
+              emptyMessage="No Interviews created yet"
               actions={(row) => (
                 <>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleViewExam(row)}
+                    onClick={() => handleViewInterview(row)}
                   >
                     View
                   </Button>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteExam(row)}
+                    onClick={() => handleDeleteInterview(row)}
                   >
                     Delete
                   </Button>
@@ -817,7 +817,7 @@ const TeacherDashboard = () => {
             />
           </Card>
 
-          <Card title="Recent Results" subtitle="Latest exam submissions">
+          <Card title="Recent Results" subtitle="Latest interview submissions">
             <Table
               columns={resultColumns}
               data={results.slice(0, 5)}
@@ -832,7 +832,7 @@ const TeacherDashboard = () => {
         <div className="space-y-6">
           <Card
             title="Your Registered Subjects"
-            subtitle="Subjects you can create exams for"
+            subtitle="Subjects you can Create Interviews for"
             action={
               <Button
                 variant="primary"
@@ -853,8 +853,8 @@ const TeacherDashboard = () => {
                 { header: "Code", accessor: "code" },
                 { header: "Description", accessor: "description" },
                 {
-                  header: "Exams",
-                  render: (row) => row.examCount || 0
+                  header: "interviews",
+                  render: (row) => row.interviewCount || 0
                 },
                 {
                   header: "Created",
@@ -874,14 +874,14 @@ const TeacherDashboard = () => {
                       setShowCreateModal(true);
                     }}
                   >
-                    Create Exam
+                    Create Interview
                   </Button>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteSubject(row.id, row.examCount)}
-                    disabled={row.examCount > 0}
-                    title={row.examCount > 0 ? "Delete all exams first" : "Delete subject"}
+                    onClick={() => handleDeleteSubject(row.id, row.interviewCount)}
+                    disabled={row.interviewCount > 0}
+                    title={row.interviewCount > 0 ? "Delete all interviews first" : "Delete subject"}
                   >
                     Delete
                   </Button>
@@ -892,7 +892,7 @@ const TeacherDashboard = () => {
         </div>
       )}
 
-      {activeTab === "exams" && (
+      {activeTab === "interviews" && (
         <div className="space-y-6">
           {/* Subscription Limit Info */}
           {school && subjectUsage && (
@@ -962,26 +962,26 @@ const TeacherDashboard = () => {
             </Card>
           )}
 
-          {/* Exams Table */}
-          <Card title="Your Registered Subjects" subtitle="Exams you have created">
+          {/* Interviews Table */}
+          <Card title="Your Registered Subjects" subtitle="Interviews you have created">
             <Table
-              columns={examColumns}
-              data={exams}
+              columns={interviewColumns}
+              data={interviews}
               loading={loading}
-              emptyMessage="No subjects registered yet. Click 'Create New Exam' to get started."
+              emptyMessage="No subjects registered yet. Click 'Create New Interview' to get started."
               actions={(row) => (
                 <>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleViewExam(row)}
+                    onClick={() => handleViewInterview(row)}
                   >
                     View
                   </Button>
                   <Button
                     variant="danger"
                     size="sm"
-                    onClick={() => handleDeleteExam(row)}
+                    onClick={() => handleDeleteInterview(row)}
                   >
                     Delete
                   </Button>
@@ -995,14 +995,14 @@ const TeacherDashboard = () => {
       {activeTab === "results" && (
         <Card
           title="All Results"
-          subtitle="Exam submission results"
+          subtitle="Interview submission results"
           action={
             results.length > 0 && (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => exportResultsToPDF(results, students, exams, { name: school?.name })}
+                  onClick={() => exportResultsToPDF(results, students, interviews, { name: school?.name })}
                 >
                   <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -1012,7 +1012,7 @@ const TeacherDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => exportResultsToExcel(results, students, exams, { name: school?.name })}
+                  onClick={() => exportResultsToExcel(results, students, interviews, { name: school?.name })}
                 >
                   <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1032,10 +1032,10 @@ const TeacherDashboard = () => {
         </Card>
       )}
 
-      {activeTab === "students" && (
+      {activeTab === "applicants" && (
         <Card
-          title="Your Registered Students"
-          subtitle="Students you have registered"
+          title="Your Registered Applicants"
+          subtitle="Applicants you have registered"
           action={
             <Button
               variant="primary"
@@ -1054,7 +1054,7 @@ const TeacherDashboard = () => {
             columns={[
               { header: "Name", accessor: "name" },
               {
-                header: "Student ID",
+                header: "Applicant ID",
                 render: (row) => (
                   <div className="flex items-center gap-2">
                     <code className="px-2 py-1 bg-blue-100 text-blue-700 rounded font-mono text-sm font-bold">
@@ -1064,7 +1064,7 @@ const TeacherDashboard = () => {
                       <button
                         onClick={() => {
                           navigator.clipboard.writeText(row.studentId);
-                          showAlert("success", "Student ID copied!");
+                          showAlert("success", "Applicant ID copied!");
                         }}
                         className="text-gray-400 hover:text-blue-600 transition-colors"
                         title="Copy Student ID"
@@ -1111,14 +1111,14 @@ const TeacherDashboard = () => {
         </Card>
       )}
 
-      {/* Create Exam Modal */}
+      {/* Create Interview Modal */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
           resetForm();
         }}
-        title="Create New Exam"
+        title="Create New Interview"
         size="xl"
         footer={
           <>
@@ -1133,10 +1133,10 @@ const TeacherDashboard = () => {
             </Button>
             <Button
               variant="primary"
-              onClick={handleCreateExam}
+              onClick={handleCreateInterview}
               loading={loading}
             >
-              Create Exam
+              Create Interview
             </Button>
           </>
         }
@@ -1156,7 +1156,7 @@ const TeacherDashboard = () => {
                 </p>
                 <div className="text-xs text-blue-800 space-y-1">
                   <p>
-                    <span className="font-semibold">Questions per exam:</span> Up to {questionLimit} questions
+                    <span className="font-semibold">Questions per interview:</span> Up to {questionLimit} questions
                   </p>
                   {subjectUsage && (
                     <p>
@@ -1193,7 +1193,7 @@ const TeacherDashboard = () => {
                       {questions.length} / {questionLimit} Question{questions.length !== 1 ? 's' : ''} Added
                     </p>
                     <p className="text-xs text-green-700">
-                      {questions.length >= questionLimit ? 'Limit reached' : 'Ready to create exam'}
+                      {questions.length >= questionLimit ? 'Limit reached' : 'Ready to Create Interview'}
                     </p>
                   </div>
                 </div>
@@ -1207,7 +1207,7 @@ const TeacherDashboard = () => {
             </div>
           )}
 
-          {/* Exam Details */}
+          {/* interview details */}
           <div>
             <div className="flex items-center mb-4">
               <div className="bg-blue-600 p-2 rounded-lg">
@@ -1226,16 +1226,16 @@ const TeacherDashboard = () => {
                 </svg>
               </div>
               <h4 className="ml-3 text-lg font-semibold text-gray-900">
-                Exam Details
+                interview details
               </h4>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Exam Title"
+                label="Interview Title"
                 name="title"
-                value={examForm.title}
-                onChange={handleExamFormChange}
-                placeholder="e.g., Math Final Exam"
+                value={interviewForm.title}
+                onChange={handleinterviewFormChange}
+                placeholder="e.g., Technical Interview"
                 required
               />
               <div className="md:col-span-2">
@@ -1271,9 +1271,9 @@ const TeacherDashboard = () => {
                       >
                         <div className="font-semibold text-gray-900">{subject.name}</div>
                         <div className="text-xs text-gray-500 mt-1">{subject.code}</div>
-                        {subject.examCount > 0 && (
+                        {subject.interviewCount > 0 && (
                           <div className="text-xs text-blue-600 mt-1">
-                            {subject.examCount} exam{subject.examCount !== 1 ? 's' : ''}
+                            {subject.interviewCount} interview{subject.interviewCount !== 1 ? 's' : ''}
                           </div>
                         )}
                       </button>
@@ -1285,17 +1285,17 @@ const TeacherDashboard = () => {
                 label="Time Limit (minutes)"
                 type="number"
                 name="timeLimit"
-                value={examForm.timeLimit}
-                onChange={handleExamFormChange}
+                value={interviewForm.timeLimit}
+                onChange={handleinterviewFormChange}
                 placeholder="e.g., 60"
                 required
               />
               <Input
-                label="Exam Date (Optional)"
+                label="Interview Date (Optional)"
                 type="date"
-                name="examDate"
-                value={examForm.examDate}
-                onChange={handleExamFormChange}
+                name="interviewDate"
+                value={interviewForm.interviewDate}
+                onChange={handleinterviewFormChange}
               />
             </div>
             <div className="mt-4">
@@ -1304,11 +1304,11 @@ const TeacherDashboard = () => {
               </label>
               <textarea
                 name="description"
-                value={examForm.description}
-                onChange={handleExamFormChange}
+                value={interviewForm.description}
+                onChange={handleinterviewFormChange}
                 rows="3"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Brief description about the exam..."
+                placeholder="Brief description about the interview..."
               />
             </div>
           </div>
@@ -1333,7 +1333,7 @@ const TeacherDashboard = () => {
                   </svg>
                 </div>
                 <h4 className="ml-3 text-lg font-semibold text-gray-900">
-                  Exam Questions
+                  Interview Questions
                 </h4>
               </div>
               {questions.length > 0 && (
@@ -1569,7 +1569,7 @@ const TeacherDashboard = () => {
                       d="M12 4v16m8-8H4"
                     />
                   </svg>
-                  Add Question to Exam
+                  Add Question to Interview
                 </Button>
               </div>
             </div>
@@ -1680,34 +1680,34 @@ const TeacherDashboard = () => {
         </div>
       </Modal>
 
-      {/* View Exam Modal */}
+      {/* View Interview Modal */}
       <Modal
         isOpen={showViewModal}
         onClose={() => {
           setShowViewModal(false);
-          setSelectedExam(null);
+          setselectedInterview(null);
         }}
-        title={selectedExam?.title || "Exam Details"}
+        title={selectedInterview?.title || "interview details"}
         size="lg"
       >
-        {selectedExam && (
+        {selectedInterview && (
           <div className="space-y-4">
-            {/* Exam Code Banner */}
+            {/* Interview Code Banner */}
             <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-xl p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm mb-1">Share this code with students</p>
                   <div className="flex items-center gap-3">
                     <code className="text-3xl font-bold font-mono tracking-wider">
-                      {selectedExam.examCode || selectedExam.id.substring(0, 6).toUpperCase()}
+                      {selectedInterview.interviewCode || selectedInterview.id.substring(0, 6).toUpperCase()}
                     </code>
                     <button
                       onClick={() => {
-                        navigator.clipboard.writeText(selectedExam.examCode || selectedExam.id);
-                        showAlert("success", "Exam code copied to clipboard!");
+                        navigator.clipboard.writeText(selectedInterview.interviewCode || selectedInterview.id);
+                        showAlert("success", "Interview Code copied to clipboard!");
                       }}
                       className="bg-white bg-opacity-20 hover:bg-opacity-30 p-2 rounded-lg transition-all"
-                      title="Copy exam code"
+                      title="Copy Interview Code"
                     >
                       <svg
                         className="h-5 w-5"
@@ -1726,9 +1726,9 @@ const TeacherDashboard = () => {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-blue-100 text-sm mb-1">Exam ID</p>
+                  <p className="text-blue-100 text-sm mb-1">Interview ID</p>
                   <p className="text-xs font-mono opacity-75">
-                    {selectedExam.id.substring(0, 12)}...
+                    {selectedInterview.id.substring(0, 12)}...
                   </p>
                 </div>
               </div>
@@ -1737,40 +1737,40 @@ const TeacherDashboard = () => {
             <div className="grid grid-cols-2 gap-4 pb-4 border-b">
               <div>
                 <p className="text-sm text-gray-600">Subject</p>
-                <p className="font-semibold">{selectedExam.subject}</p>
+                <p className="font-semibold">{selectedInterview.subject}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Time Limit</p>
                 <p className="font-semibold">
-                  {selectedExam.timeLimit} minutes
+                  {selectedInterview.timeLimit} minutes
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total Questions</p>
                 <p className="font-semibold">
-                  {selectedExam.questions?.length || 0}
+                  {selectedInterview.questions?.length || 0}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Created</p>
                 <p className="font-semibold">
-                  {selectedExam.createdAt?.toDate().toLocaleDateString() ||
+                  {selectedInterview.createdAt?.toDate().toLocaleDateString() ||
                     "N/A"}
                 </p>
               </div>
             </div>
 
-            {selectedExam.description && (
+            {selectedInterview.description && (
               <div className="pb-4 border-b">
                 <p className="text-sm text-gray-600 mb-1">Description</p>
-                <p className="text-gray-900">{selectedExam.description}</p>
+                <p className="text-gray-900">{selectedInterview.description}</p>
               </div>
             )}
 
             <div>
               <h4 className="font-semibold text-gray-900 mb-3">Questions</h4>
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {selectedExam.questions?.map((q, index) => (
+                {selectedInterview.questions?.map((q, index) => (
                   <div
                     key={q.id}
                     className="bg-gray-50 p-4 rounded-lg border border-gray-200"
@@ -1851,7 +1851,7 @@ const TeacherDashboard = () => {
             <p className="text-gray-700 mb-4">
               {limitModalType === 'subject'
                 ? `Your school has reached the limit of ${subjectUsage.limit} subjects. Upgrade the school plan to add more subjects.`
-                : `Your school has reached the limit of ${studentUsage.limit} students. Upgrade the school plan to add more students.`
+                : `Your school has reached the limit of ${studentUsage.limit} applicants. Upgrade the school plan to add more applicants.`
               }
             </p>
 
@@ -1863,7 +1863,7 @@ const TeacherDashboard = () => {
                 </p>
                 <div className="mt-3 text-sm text-gray-600">
                   <p>Subjects: {subjectUsage.current} / {subjectUsage.limit}</p>
-                  <p>Students: {studentUsage.current} / {studentUsage.limit}</p>
+                  <p>Applicants: {studentUsage.current} / {studentUsage.limit}</p>
                 </div>
               </div>
             )}
@@ -1888,7 +1888,7 @@ const TeacherDashboard = () => {
             fullWidth
             onClick={() => {
               setShowLimitModal(false);
-              window.location.href = '/teacher/subscription';
+              window.location.href = '/employer/subscription';
             }}
           >
             Upgrade Now
@@ -1924,7 +1924,7 @@ const TeacherDashboard = () => {
           <Modal
             isOpen={!!registeredStudentId}
             onClose={() => setRegisteredStudentId(null)}
-            title="Student Registered Successfully!"
+            title="Applicant Registered Successfully!"
             size="md"
           >
             <div className="text-center space-y-4">
@@ -1949,7 +1949,7 @@ const TeacherDashboard = () => {
                 variant="primary"
                 onClick={() => {
                   navigator.clipboard.writeText(registeredStudentId);
-                  showAlert("success", "Student ID copied to clipboard!");
+                  showAlert("success", "Applicant ID copied to clipboard!");
                 }}
               >
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1965,4 +1965,6 @@ const TeacherDashboard = () => {
   );
 };
 
-export default TeacherDashboard;
+export default EmployerDashboard;
+
+

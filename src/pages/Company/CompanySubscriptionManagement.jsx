@@ -8,11 +8,12 @@ import Modal from '../../components/Modal';
 import SubscriptionDashboard from '../../components/Subscription/SubscriptionDashboard';
 import PlanComparison from '../../components/Subscription/PlanComparison';
 import PaymentModal from '../../components/Subscription/PaymentModal';
+import ReceiptModal from '../../components/Subscription/ReceiptModal';
 import SchoolManagement from '../../components/School/SchoolManagement';
 import { getTransactionHistory } from '../../firebase/schoolService';
 import { useAuth } from '../../context/AuthContext';
 
-const SchoolSubscriptionManagement = () => {
+const CompanySubscriptionManagement = () => {
   const { user } = useAuth();
   const {
     school,
@@ -28,6 +29,8 @@ const SchoolSubscriptionManagement = () => {
   const [showPlanComparison, setShowPlanComparison] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -230,7 +233,7 @@ const SchoolSubscriptionManagement = () => {
           <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-purple-600 font-medium">Students</p>
+                <p className="text-sm text-purple-600 font-medium">Applicants</p>
                 <p className="text-3xl font-bold text-purple-900 mt-1">{studentUsage.current}/{studentUsage.limit}</p>
               </div>
               <div className="bg-purple-200 p-3 rounded-full">
@@ -350,7 +353,7 @@ const SchoolSubscriptionManagement = () => {
                   <span className="text-sm font-semibold text-gray-900">{school.subjectLimit}</span>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <span className="text-sm text-gray-600">Student Limit</span>
+                  <span className="text-sm text-gray-600">Applicant Limit</span>
                   <span className="text-sm font-semibold text-gray-900">{school.studentLimit}</span>
                 </div>
               </div>
@@ -429,11 +432,21 @@ const SchoolSubscriptionManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((transaction) => (
-                    <tr key={transaction.id}>
+                    <tr 
+                      key={transaction.id}
+                      onClick={() => {
+                        setSelectedTransaction(transaction);
+                        setShowReceiptModal(true);
+                      }}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(transaction.createdAt)}
                       </td>
@@ -465,6 +478,11 @@ const SchoolSubscriptionManagement = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                         {(transaction.monnifyReference || transaction.paystackReference)?.substring(0, 12)}...
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </td>
                     </tr>
                   ))}
@@ -567,8 +585,18 @@ const SchoolSubscriptionManagement = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+      />
     </Layout >
   );
 };
 
-export default SchoolSubscriptionManagement;
+export default CompanySubscriptionManagement;

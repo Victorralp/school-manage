@@ -8,6 +8,7 @@ import Modal from '../../components/Modal';
 import SubscriptionDashboard from '../../components/Subscription/SubscriptionDashboard';
 import PlanComparison from '../../components/Subscription/PlanComparison';
 import PaymentModal from '../../components/Subscription/PaymentModal';
+import ReceiptModal from '../../components/Subscription/ReceiptModal';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
@@ -19,6 +20,8 @@ const SubscriptionSettings = () => {
   const [showPlanComparison, setShowPlanComparison] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -217,11 +220,21 @@ const SubscriptionSettings = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Reference
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transactions.map((transaction) => (
-                    <tr key={transaction.id}>
+                    <tr 
+                      key={transaction.id}
+                      onClick={() => {
+                        setSelectedTransaction(transaction);
+                        setShowReceiptModal(true);
+                      }}
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                    >
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatDate(transaction.createdAt)}
                       </td>
@@ -243,6 +256,11 @@ const SubscriptionSettings = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
                         {(transaction.monnifyReference || transaction.paystackReference)?.substring(0, 12)}...
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </td>
                     </tr>
                   ))}
@@ -338,6 +356,16 @@ const SubscriptionSettings = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Receipt Modal */}
+      <ReceiptModal
+        isOpen={showReceiptModal}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+      />
     </Layout>
   );
 };

@@ -25,18 +25,23 @@ const Layout = ({ children, title, showHeader = true }) => {
       case "admin":
         return "Admin";
       case "school":
-        return "School";
+        return "Company";
       case "teacher":
-        return "Teacher";
+        return "Employer";
       case "student":
-        return "Student";
+        return "Applicant";
       default:
         return "User";
     }
   };
 
   const getDashboardRoute = () => {
-    return `/${role}`;
+    const roleRouteMap = {
+      'teacher': '/employer',
+      'school': '/company',
+      'student': '/applicant'
+    };
+    return roleRouteMap[role] || `/${role}`;
   };
 
   const showWarningBadge = role === 'teacher' && (isNearLimit('subject') || isNearLimit('student'));
@@ -69,7 +74,7 @@ const Layout = ({ children, title, showHeader = true }) => {
                     </svg>
                   </div>
                   <span className="ml-3 text-xl font-bold text-gray-900">
-                    School Exam System
+                    Employment Management System
                   </span>
                 </div>
               </div>
@@ -113,15 +118,15 @@ const Layout = ({ children, title, showHeader = true }) => {
         </header>
       )}
 
-      {/* Teacher Navigation Menu */}
+      {/* Employer Navigation Menu */}
       {showHeader && role === 'teacher' && (
         <nav className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex space-x-8">
               <button
-                onClick={() => navigate('/teacher')}
+                onClick={() => navigate('/employer')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  location.pathname === '/teacher'
+                  location.pathname === '/employer'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -144,9 +149,9 @@ const Layout = ({ children, title, showHeader = true }) => {
                 </div>
               </button>
               <button
-                onClick={() => navigate('/teacher/subscription')}
+                onClick={() => navigate('/employer/subscription')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors relative ${
-                  location.pathname === '/teacher/subscription'
+                  location.pathname === '/employer/subscription'
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
@@ -178,6 +183,101 @@ const Layout = ({ children, title, showHeader = true }) => {
         </nav>
       )}
 
+      {/* Company Navigation Menu */}
+      {showHeader && role === 'school' && (
+        <nav className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => navigate('/company')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  location.pathname === '/company'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                  Dashboard
+                </div>
+              </button>
+              <button
+                onClick={() => navigate('/company/subscription')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  location.pathname === '/company/subscription'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                    />
+                  </svg>
+                  Subscription
+                </div>
+              </button>
+            </div>
+          </div>
+        </nav>
+      )}
+
+      {/* Applicant Navigation Menu */}
+      {showHeader && role === 'student' && (
+        <nav className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex space-x-8">
+              <button
+                onClick={() => navigate('/applicant')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  location.pathname === '/applicant' || location.pathname.startsWith('/applicant/interview/')
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center">
+                  <svg
+                    className="h-5 w-5 mr-2"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                    />
+                  </svg>
+                  Dashboard
+                </div>
+              </button>
+            </div>
+          </div>
+        </nav>
+      )}
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {title && (
@@ -193,7 +293,7 @@ const Layout = ({ children, title, showHeader = true }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between">
             <p className="text-center text-sm text-gray-500">
-              © {new Date().getFullYear()} School Exam Management System. All
+              © {new Date().getFullYear()} Employment Management System. All
               rights reserved.
             </p>
             {role === "admin" && (

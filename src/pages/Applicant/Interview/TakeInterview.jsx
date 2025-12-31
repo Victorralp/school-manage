@@ -16,11 +16,11 @@ import Card from "../../../components/Card";
 import Button from "../../../components/Button";
 import Alert from "../../../components/Alert";
 
-const TakeExam = () => {
-  const { examId } = useParams();
+const TakeInterview = () => {
+  const { interviewId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [exam, setExam] = useState(null);
+  const [interview, setInterview] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [answers, setAnswers] = useState({});
   const [completed, setCompleted] = useState(false);
@@ -33,8 +33,8 @@ const TakeExam = () => {
   const [hasAlreadyAttempted, setHasAlreadyAttempted] = useState(false);
 
   useEffect(() => {
-    fetchExamData();
-  }, [examId]);
+    fetchInterviewData();
+  }, [interviewId]);
 
   useEffect(() => {
     if (timerStarted && timeRemaining > 0 && !completed) {
@@ -53,14 +53,14 @@ const TakeExam = () => {
     }
   }, [timerStarted, timeRemaining, completed]);
 
-  const fetchExamData = async () => {
+  const fetchInterviewData = async () => {
     setLoading(true);
     try {
-      // Check if student has already attempted this exam
+      // Check if student has already attempted this Interview
       const resultsQuery = query(
         collection(db, "results"),
         where("studentId", "==", user.uid),
-        where("examId", "==", examId),
+        where("interviewId", "==", interviewId),
       );
       const resultsSnapshot = await getDocs(resultsQuery);
 
@@ -73,30 +73,30 @@ const TakeExam = () => {
         return;
       }
 
-      // Fetch exam details
-      const examRef = doc(db, "exams", examId);
-      const examSnap = await getDoc(examRef);
+      // Fetch Interview details
+      const InterviewRef = doc(db, "interviews", interviewId);
+      const InterviewSnap = await getDoc(InterviewRef);
 
-      if (examSnap.exists()) {
-        const examData = { id: examSnap.id, ...examSnap.data() };
-        setExam(examData);
-        setTimeRemaining(examData.timeLimit * 60); // Convert minutes to seconds
+      if (InterviewSnap.exists()) {
+        const InterviewData = { id: InterviewSnap.id, ...InterviewSnap.data() };
+        setInterview(InterviewData);
+        setTimeRemaining(InterviewData.timeLimit * 60); // Convert minutes to seconds
 
         // Fetch questions
         const qSnapshot = await getDocs(
-          collection(db, "exams", examId, "questions"),
+          collection(db, "interviews", interviewId, "questions"),
         );
         const qData = qSnapshot.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
           .sort((a, b) => (a.questionNumber || 0) - (b.questionNumber || 0));
         setQuestions(qData);
       } else {
-        showAlert("error", "Exam not found");
-        navigate("/student");
+        showAlert("error", "Interview not found");
+        navigate("/applicant");
       }
     } catch (error) {
-      console.error("Error fetching exam data:", error);
-      showAlert("error", "Failed to load exam");
+      console.error("Error fetching Interview data:", error);
+      showAlert("error", "Failed to load Interview");
     } finally {
       setLoading(false);
     }
@@ -107,9 +107,9 @@ const TakeExam = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const startExam = () => {
+  const startInterview = () => {
     setTimerStarted(true);
-    showAlert("success", "Exam started! Good luck!");
+    showAlert("success", "Interview started! Good luck!");
   };
 
   const handleAnswerChange = (questionId, value) => {
@@ -117,13 +117,13 @@ const TakeExam = () => {
   };
 
   const handleAutoSubmit = async () => {
-    showAlert("warning", "Time's up! Submitting your exam...");
+    showAlert("warning", "Time's up! Submitting your interview...");
     await handleSubmit();
   };
 
   const handleSubmit = async () => {
     if (!timerStarted) {
-      showAlert("error", "Please start the exam first");
+      showAlert("error", "Please start the Interview first");
       return;
     }
 
@@ -158,7 +158,7 @@ const TakeExam = () => {
       // Save result to Firestore
       await addDoc(collection(db, "results"), {
         studentId: user.uid,
-        examId,
+        interviewId,
         score: correct,
         totalQuestions: questions.length,
         answers: answers,
@@ -166,10 +166,10 @@ const TakeExam = () => {
       });
 
       setCompleted(true);
-      showAlert("success", "Exam submitted successfully!");
+      showAlert("success", "Interview submitted successfully!");
     } catch (error) {
-      console.error("Error submitting exam:", error);
-      showAlert("error", "Failed to submit exam. Please try again.");
+      console.error("Error submitting Interview:", error);
+      showAlert("error", "Failed to submit interview. Please try again.");
       setSubmitting(false);
     }
   };
@@ -206,7 +206,7 @@ const TakeExam = () => {
 
   if (hasAlreadyAttempted && completed) {
     return (
-      <Layout title="Exam Already Attempted">
+      <Layout title="Interview Already Attempted">
         <Card className="text-center py-12">
           <svg
             className="mx-auto h-16 w-16 text-yellow-500 mb-4"
@@ -222,7 +222,7 @@ const TakeExam = () => {
             />
           </svg>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            You've Already Taken This Exam
+            You've Already Taken This Interview
           </h2>
           <div className="max-w-md mx-auto mb-6">
             <div className="bg-gray-50 p-6 rounded-lg">
@@ -235,7 +235,7 @@ const TakeExam = () => {
               <p className="text-gray-600 mt-2">({calculatePercentage()}%)</p>
             </div>
           </div>
-          <Button variant="primary" onClick={() => navigate("/student")}>
+          <Button variant="primary" onClick={() => navigate("/applicant")}>
             Back to Dashboard
           </Button>
         </Card>
@@ -245,7 +245,7 @@ const TakeExam = () => {
 
 
 
-  // Helper to check if exam has theory questions
+  // Helper to check if Interview has theory questions
   const hasTheoryQuestions = questions.some(q => q.type === 'theory');
   const objectiveQuestionsCount = questions.filter(q => !q.type || q.type === 'objective').length;
 
@@ -257,7 +257,7 @@ const TakeExam = () => {
     const percentage = objectiveQuestionsCount > 0 ? ((score / objectiveQuestionsCount) * 100).toFixed(1) : 0;
 
     return (
-      <Layout title="Exam Completed">
+      <Layout title="Interview Completed">
         <Card className="text-center py-12">
           <div
             className={`mx-auto h-20 w-20 rounded-full flex items-center justify-center mb-6 ${passed ? "bg-green-100" : "bg-red-100"
@@ -295,12 +295,12 @@ const TakeExam = () => {
           </div>
 
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Exam Submitted Successfully!
+            Interview Submitted Successfully!
           </h2>
           <p className="text-gray-600 mb-8">
             {hasTheoryQuestions
-              ? "Your exam has been submitted. Objective questions have been graded."
-              : (passed ? "Congratulations! You passed the exam." : "Keep practicing. You'll do better next time!")
+              ? "Your Interview has been submitted. Objective questions have been graded."
+              : (passed ? "Congratulations! You passed the interview." : "Keep practicing. You'll do better next time!")
             }
           </p>
 
@@ -340,7 +340,7 @@ const TakeExam = () => {
           <Button
             variant="primary"
             size="lg"
-            onClick={() => navigate("/student")}
+            onClick={() => navigate("/applicant")}
           >
             Back to Dashboard
           </Button>
@@ -349,14 +349,14 @@ const TakeExam = () => {
     );
   }
 
-  if (!exam) {
+  if (!interview) {
     return (
       <Layout>
         <Card className="text-center py-12">
-          <p className="text-gray-600">Exam not found</p>
+          <p className="text-gray-600">Interview not found</p>
           <Button
             variant="primary"
-            onClick={() => navigate("/student")}
+            onClick={() => navigate("/applicant")}
             className="mt-4"
           >
             Back to Dashboard
@@ -367,7 +367,7 @@ const TakeExam = () => {
   }
 
   return (
-    <Layout title={exam.title}>
+    <Layout title={interview.title}>
       {alert && (
         <Alert
           type={alert.type}
@@ -377,19 +377,19 @@ const TakeExam = () => {
         />
       )}
 
-      {/* Exam Header */}
+      {/* Interview Header */}
       <Card className="mb-6 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
         <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-2xl font-bold mb-2">{exam.title}</h2>
-            <p className="text-blue-100">{exam.subject}</p>
-            {exam.description && (
-              <p className="text-blue-100 mt-2 text-sm">{exam.description}</p>
+            <h2 className="text-2xl font-bold mb-2">{interview.title}</h2>
+            <p className="text-blue-100">{interview.subject}</p>
+            {interview.description && (
+              <p className="text-blue-100 mt-2 text-sm">{interview.description}</p>
             )}
           </div>
           <div className="text-right">
             <p className="text-blue-100 text-sm">Teacher</p>
-            <p className="font-semibold">{exam.teacherName || "Unknown"}</p>
+            <p className="font-semibold">{interview.teacherName || "Unknown"}</p>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -399,7 +399,7 @@ const TakeExam = () => {
           </div>
           <div className="bg-blue-600 bg-opacity-50 px-4 py-2 rounded">
             <p className="text-blue-100 text-xs">Time Limit</p>
-            <p className="font-bold text-lg">{exam.timeLimit} mins</p>
+            <p className="font-bold text-lg">{interview.timeLimit} mins</p>
           </div>
           <div className="bg-blue-600 bg-opacity-50 px-4 py-2 rounded">
             <p className="text-blue-100 text-xs">Status</p>
@@ -418,7 +418,7 @@ const TakeExam = () => {
         </div>
       </Card>
 
-      {/* Start Exam Button */}
+      {/* Start Interview Button */}
       {!timerStarted && (
         <Card className="text-center py-8 mb-6">
           <svg
@@ -438,8 +438,8 @@ const TakeExam = () => {
             Ready to Start?
           </h3>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            Once you start the exam, the timer will begin. You have{" "}
-            <strong>{exam.timeLimit} minutes</strong> to complete all{" "}
+            Once you start the Interview, the timer will begin. You have{" "}
+            <strong>{interview.timeLimit} minutes</strong> to complete all{" "}
             <strong>{questions.length} questions</strong>. Make sure you're
             ready before starting.
           </p>
@@ -447,12 +447,12 @@ const TakeExam = () => {
             <Button
               variant="secondary"
               size="lg"
-              onClick={() => navigate("/student")}
+              onClick={() => navigate("/applicant")}
             >
               Cancel
             </Button>
-            <Button variant="primary" size="lg" onClick={startExam}>
-              Start Exam
+            <Button variant="primary" size="lg" onClick={startInterview}>
+              Start Interview
             </Button>
           </div>
         </Card>
@@ -544,7 +544,7 @@ const TakeExam = () => {
                 onClick={handleSubmit}
                 loading={submitting}
               >
-                Submit Exam
+                Submit Interview
               </Button>
             </div>
           </Card>
@@ -554,4 +554,5 @@ const TakeExam = () => {
   );
 };
 
-export default TakeExam;
+export default TakeInterview;
+

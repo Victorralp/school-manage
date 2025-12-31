@@ -137,7 +137,7 @@ const SubscriptionWidget = () => {
           variant="outline"
           size="sm"
           fullWidth
-          onClick={() => navigate('/teacher/subscription')}
+          onClick={() => navigate('/employer/subscription')}
         >
           View Details
         </Button>
@@ -146,7 +146,7 @@ const SubscriptionWidget = () => {
             variant="primary"
             size="sm"
             fullWidth
-            onClick={() => navigate('/teacher/subscription')}
+            onClick={() => navigate('/employer/subscription')}
           >
             Upgrade Plan
           </Button>

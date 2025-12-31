@@ -51,7 +51,7 @@ const Welcome = () => {
                 </svg>
               </div>
               <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-                SchoolHub
+                Employment Management System
               </span>
             </div>
             <div>
@@ -73,13 +73,13 @@ const Welcome = () => {
         <div className="py-20 lg:py-32 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium mb-8">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            Next Gen Exam Management
+            Next Gen Interview Management
           </div>
 
           <h1 className="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-8 leading-tight">
             Elevate Your <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-blue-400">
-              Exam Experience
+              Interview Experience
             </span>
           </h1>
 
@@ -165,8 +165,8 @@ const Welcome = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <h4 className="text-xl font-bold text-white mb-3">Secure Exams</h4>
-              <p className="text-slate-400 leading-relaxed">Robust environment for creating, scheduling, and conducting secure examinations.</p>
+              <h4 className="text-xl font-bold text-white mb-3">Secure Interviews</h4>
+              <p className="text-slate-400 leading-relaxed">Robust environment for creating, scheduling, and conducting secure interviews.</p>
             </div>
 
             <div className="p-8 rounded-3xl bg-slate-800/20 border border-white/5 hover:bg-slate-800/40 transition-colors">
@@ -176,7 +176,7 @@ const Welcome = () => {
                 </svg>
               </div>
               <h4 className="text-xl font-bold text-white mb-3">Real-time Results</h4>
-              <p className="text-slate-400 leading-relaxed">Instant processing and delivery of exam results to students and teachers.</p>
+              <p className="text-slate-400 leading-relaxed">Instant processing and delivery of interview results to applicants and employers.</p>
             </div>
           </div>
         </div>
@@ -201,7 +201,7 @@ const Welcome = () => {
       <footer className="relative z-10 border-t border-white/5 bg-slate-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row items-center justify-between text-slate-500 text-sm">
-            <p>&copy; {new Date().getFullYear()} SchoolHub. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Employment Management System. All rights reserved.</p>
             <div className="flex gap-6 mt-4 md:mt-0">
               <span className="hover:text-slate-300 cursor-pointer transition-colors">Privacy Policy</span>
               <span className="hover:text-slate-300 cursor-pointer transition-colors">Terms of Service</span>

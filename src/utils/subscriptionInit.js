@@ -26,8 +26,8 @@ export const initializeTeacherSubscription = async (teacherId) => {
       status: "active",
       
       // Free plan limits
-      subjectLimit: 3,
-      studentLimit: 10,
+      subjectLimit: 2,
+      studentLimit: 2,
       
       // Initial usage counts
       currentSubjects: 0,
@@ -99,8 +99,8 @@ export const initializeSchoolSubscription = async (schoolId) => {
       status: "active",
       
       // Free plan limits (school-wide)
-      subjectLimit: 10,
-      studentLimit: 50,
+      subjectLimit: 2,
+      studentLimit: 2,
       
       // Initial usage counts
       currentSubjects: 0,

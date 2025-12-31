@@ -22,7 +22,7 @@ import LimitWarning from "../../components/Subscription/LimitWarning";
 import SchoolSubscriptionWidget from "../../components/Subscription/SchoolSubscriptionWidget";
 import { exportResultsToPDF, exportResultsToExcel } from "../../utils/exportResults";
 
-const SchoolDashboard = () => {
+const CompanyDashboard = () => {
   const { user } = useAuth();
   const { 
     checkLimit, 
@@ -36,7 +36,7 @@ const SchoolDashboard = () => {
   } = useSchoolSubscription();
   const [teachers, setTeachers] = useState([]);
   const [students, setStudents] = useState([]);
-  const [exams, setExams] = useState([]);
+  const [interviews, setInterviews] = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
@@ -86,18 +86,18 @@ const SchoolDashboard = () => {
       }));
       setStudents(studentsData);
 
-      // Fetch exams created by teachers in this school
+      // Fetch Interviews created by teachers in this school
       const teacherIds = teachersData.map((t) => t.id);
       if (teacherIds.length > 0) {
-        const examsQuery = query(collection(db, "exams"));
-        const examsSnapshot = await getDocs(examsQuery);
-        const examsData = examsSnapshot.docs
+        const interviewsQuery = query(collection(db, "interviews"));
+        const interviewsSnapshot = await getDocs(interviewsQuery);
+        const interviewsData = interviewsSnapshot.docs
           .map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }))
-          .filter((exam) => teacherIds.includes(exam.teacherId));
-        setExams(examsData);
+          .filter((interview) => teacherIds.includes(interview.teacherId));
+        setInterviews(interviewsData);
       }
 
       // Fetch results for students in this school
@@ -242,7 +242,7 @@ const SchoolDashboard = () => {
     },
   ];
 
-  const examColumns = [
+  const interviewColumns = [
     { header: "Title", accessor: "title" },
     { header: "Subject", accessor: "subject" },
     {
@@ -276,7 +276,7 @@ const SchoolDashboard = () => {
       : 0;
 
   return (
-    <Layout title="School Dashboard">
+    <Layout title="Company Dashboard">
       {alert && (
         <Alert
           type={alert.type}
@@ -290,7 +290,7 @@ const SchoolDashboard = () => {
       <LimitWarning 
         onUpgradeClick={() => {
           // Navigate to subscription settings
-          window.location.href = '/teacher/subscription';
+          window.location.href = '/company/subscription';
         }}
       />
 
@@ -442,8 +442,8 @@ const SchoolDashboard = () => {
         <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-orange-100 text-sm font-medium">Total Exams</p>
-              <p className="text-3xl font-bold mt-2">{exams.length}</p>
+              <p className="text-orange-100 text-sm font-medium">Total Interviews</p>
+              <p className="text-3xl font-bold mt-2">{interviews.length}</p>
               <p className="text-orange-100 text-xs mt-1">
                 Created by teachers
               </p>
@@ -494,7 +494,7 @@ const SchoolDashboard = () => {
       <div className="mb-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
-            {["overview", "teachers", "students", "exams", "performance"].map(
+            {["overview", "teachers", "students", "interviews", "performance"].map(
               (tab) => (
                 <button
                   key={tab}
@@ -591,9 +591,9 @@ const SchoolDashboard = () => {
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-600">Active Exams</p>
+                <p className="text-sm text-gray-600">Active Interviews</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {exams.length}
+                  {interviews.length}
                 </p>
               </div>
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -700,13 +700,13 @@ const SchoolDashboard = () => {
         </Card>
       )}
 
-      {activeTab === "exams" && (
-        <Card title="All Exams" subtitle="Exams created by your teachers">
+      {activeTab === "interviews" && (
+        <Card title="All Interviews" subtitle="Interviews created by your employers">
           <Table
-            columns={examColumns}
-            data={exams}
+            columns={interviewColumns}
+            data={interviews}
             loading={loading}
-            emptyMessage="No exams created yet"
+            emptyMessage="No Interviews created yet"
           />
         </Card>
       )}
@@ -721,7 +721,7 @@ const SchoolDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => exportResultsToPDF(results, students, exams, { name: schoolData?.name || 'School' })}
+                  onClick={() => exportResultsToPDF(results, students, interviews, { name: schoolData?.name || 'Company' })}
                 >
                   <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -731,7 +731,7 @@ const SchoolDashboard = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => exportResultsToExcel(results, students, exams, { name: schoolData?.name || 'School' })}
+                  onClick={() => exportResultsToExcel(results, students, interviews, { name: schoolData?.name || 'Company' })}
                 >
                   <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -776,7 +776,7 @@ const SchoolDashboard = () => {
                   <p className="text-4xl font-bold text-blue-600">
                     {averageScore}%
                   </p>
-                  <p className="text-sm text-blue-700 mt-2">Across all exams</p>
+                  <p className="text-sm text-blue-700 mt-2">Across all interviews</p>
                 </div>
               </div>
 
@@ -789,7 +789,7 @@ const SchoolDashboard = () => {
                     const student = students.find(
                       (s) => s.id === result.studentId,
                     );
-                    const exam = exams.find((e) => e.id === result.examId);
+                    const interview = interviews.find((e) => e.id === result.interviewId);
                     const percentage =
                       (result.score / result.totalQuestions) * 100;
 
@@ -803,7 +803,7 @@ const SchoolDashboard = () => {
                             {student?.name || "Unknown Student"}
                           </p>
                           <p className="text-sm text-gray-500">
-                            {exam?.title || "Unknown Exam"}
+                            {interview?.title || "Unknown Interview"}
                           </p>
                         </div>
                         <div className="text-right">
@@ -824,7 +824,7 @@ const SchoolDashboard = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500">No exam results available yet</p>
+              <p className="text-gray-500">No interview results available yet</p>
             </div>
           )}
         </Card>
@@ -861,7 +861,7 @@ const SchoolDashboard = () => {
             <p className="text-gray-700 mb-4">
               {limitModalType === 'subject' 
                 ? `You've reached your subject limit of ${subjectUsage.limit}. Upgrade your plan to add more subjects.`
-                : `You've reached your student limit of ${studentUsage.limit}. Upgrade your plan to add more students.`
+                : `You've reached your applicant limit of ${studentUsage.limit}. Upgrade your plan to add more applicants.`
               }
             </p>
             
@@ -873,7 +873,7 @@ const SchoolDashboard = () => {
                 </p>
                 <div className="mt-3 text-sm text-gray-600">
                   <p>Subjects: {subjectUsage.current} / {subjectUsage.limit}</p>
-                  <p>Students: {studentUsage.current} / {studentUsage.limit}</p>
+                  <p>Applicants: {studentUsage.current} / {studentUsage.limit}</p>
                 </div>
               </div>
             )}
@@ -898,7 +898,7 @@ const SchoolDashboard = () => {
             fullWidth
             onClick={() => {
               setShowLimitModal(false);
-              window.location.href = '/teacher/subscription';
+              window.location.href = '/company/subscription';
             }}
           >
             Upgrade Now
@@ -909,4 +909,5 @@ const SchoolDashboard = () => {
   );
 };
 
-export default SchoolDashboard;
+export default CompanyDashboard;
+

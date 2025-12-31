@@ -165,10 +165,10 @@ const SchoolSubscriptionWidget = () => {
   // Handle navigation based on current path
   const handleNavigate = (destination) => {
     const path = window.location.pathname;
-    if (path.startsWith('/school')) {
-      navigate('/school/subscription');
+    if (path.startsWith('/company')) {
+      navigate('/company/subscription');
     } else {
-      navigate('/teacher/subscription');
+      navigate('/employer/subscription');
     }
   };
 

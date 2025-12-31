@@ -17,7 +17,7 @@ import Table from "../../components/Table";
 import Button from "../../components/Button";
 import Alert from "../../components/Alert";
 
-const StudentDashboard = () => {
+const ApplicantDashboard = () => {
   const { user, userData } = useAuth();
   const navigate = useNavigate();
   const [exams, setExams] = useState([]);
@@ -25,7 +25,7 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("available");
   const [alert, setAlert] = useState(null);
-  const [examCode, setExamCode] = useState("");
+  const [interviewCode, setinterviewCode] = useState("");
   const [searchingExam, setSearchingExam] = useState(false);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ const StudentDashboard = () => {
     setLoading(true);
     try {
       // Fetch all exams (in a real app, you'd filter by school or assigned students)
-      const examsQuery = query(collection(db, "exams"));
+      const examsQuery = query(collection(db, "interviews"));
       const examsSnapshot = await getDocs(examsQuery);
       const examsData = examsSnapshot.docs.map((doc) => ({
         id: doc.id,
@@ -70,9 +70,9 @@ const StudentDashboard = () => {
     setTimeout(() => setAlert(null), 5000);
   };
 
-  const handleExamCodeSearch = async () => {
-    if (!examCode.trim()) {
-      showAlert("error", "Please enter an exam code");
+  const handleinterviewCodeSearch = async () => {
+    if (!interviewCode.trim()) {
+      showAlert("error", "Please enter an Interview Code");
       return;
     }
 
@@ -80,8 +80,8 @@ const StudentDashboard = () => {
     try {
       // Search for exam by code
       const examsQuery = query(
-        collection(db, "exams"),
-        where("examCode", "==", examCode.toUpperCase())
+        collection(db, "interviews"),
+        where("interviewCode", "==", interviewCode.toUpperCase())
       );
       const examsSnapshot = await getDocs(examsQuery);
 
@@ -91,31 +91,31 @@ const StudentDashboard = () => {
       }
 
       const examData = examsSnapshot.docs[0];
-      const examId = examData.id;
+      const interviewId = examData.id;
 
       // Check if already attempted
-      if (hasAttempted(examId)) {
+      if (hasAttempted(interviewId)) {
         showAlert("warning", "You have already taken this exam");
         return;
       }
 
       // Navigate to exam
-      navigate(`/student/exam/${examId}`);
+      navigate(`/student/exam/${interviewId}`);
     } catch (error) {
       console.error("Error searching exam:", error);
       showAlert("error", "Failed to find exam. Please try again.");
     } finally {
       setSearchingExam(false);
-      setExamCode("");
+      setinterviewCode("");
     }
   };
 
-  const hasAttempted = (examId) => {
-    return results.some((result) => result.examId === examId);
+  const hasAttempted = (interviewId) => {
+    return results.some((result) => result.interviewId === interviewId);
   };
 
-  const getExamResult = (examId) => {
-    return results.find((result) => result.examId === examId);
+  const getExamResult = (interviewId) => {
+    return results.find((result) => result.interviewId === interviewId);
   };
 
   const calculateStats = () => {
@@ -149,17 +149,17 @@ const StudentDashboard = () => {
 
   const stats = calculateStats();
 
-  const availableExams = exams.filter((exam) => !hasAttempted(exam.id));
-  const completedExams = exams.filter((exam) => hasAttempted(exam.id));
+  const availableExams = exams.filter((interview) => !hasAttempted(exam.id));
+  const completedExams = exams.filter((interview) => hasAttempted(exam.id));
 
   const examColumns = [
     { header: "Title", accessor: "title" },
     { header: "Subject", accessor: "subject" },
     {
-      header: "Exam Code",
+      header: "Interview Code",
       render: (row) => (
         <code className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-mono text-sm font-bold">
-          {row.examCode || row.id.substring(0, 6).toUpperCase()}
+          {row.interviewCode || row.id.substring(0, 6).toUpperCase()}
         </code>
       ),
     },
@@ -181,14 +181,14 @@ const StudentDashboard = () => {
     {
       header: "Exam",
       render: (row) => {
-        const exam = exams.find((e) => e.id === row.examId);
+        const exam = exams.find((e) => e.id === row.interviewId);
         return exam?.title || "Unknown";
       },
     },
     {
       header: "Subject",
       render: (row) => {
-        const exam = exams.find((e) => e.id === row.examId);
+        const exam = exams.find((e) => e.id === row.interviewId);
         return exam?.subject || "N/A";
       },
     },
@@ -297,7 +297,7 @@ const StudentDashboard = () => {
   }
 
   return (
-    <Layout title="Student Dashboard">
+    <Layout title="Applicant Dashboard">
       {alert && (
         <Alert
           type={alert.type}
@@ -307,7 +307,7 @@ const StudentDashboard = () => {
         />
       )}
 
-      {/* Enter Exam Code */}
+      {/* Enter Interview Code */}
       <Card className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200">
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="flex-shrink-0">
@@ -329,7 +329,7 @@ const StudentDashboard = () => {
           </div>
           <div className="flex-1 text-center md:text-left">
             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              Have an Exam Code?
+              Have an Interview Code?
             </h3>
             <p className="text-sm text-gray-600">
               Enter the code provided by your teacher to access the exam
@@ -338,16 +338,16 @@ const StudentDashboard = () => {
           <div className="flex gap-2 w-full md:w-auto">
             <input
               type="text"
-              value={examCode}
-              onChange={(e) => setExamCode(e.target.value.toUpperCase())}
-              onKeyPress={(e) => e.key === "Enter" && handleExamCodeSearch()}
+              value={interviewCode}
+              onChange={(e) => setinterviewCode(e.target.value.toUpperCase())}
+              onKeyPress={(e) => e.key === "Enter" && handleinterviewCodeSearch()}
               placeholder="Enter code (e.g., ABC123)"
               className="px-4 py-2 border-2 border-purple-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-center uppercase w-full md:w-40"
               maxLength={6}
             />
             <Button
               variant="primary"
-              onClick={handleExamCodeSearch}
+              onClick={handleinterviewCodeSearch}
               loading={searchingExam}
               className="bg-purple-600 hover:bg-purple-700"
             >
@@ -376,7 +376,7 @@ const StudentDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-sm font-medium">
-                Available Exams
+                Available Interviews
               </p>
               <p className="text-3xl font-bold mt-2">{availableExams.length}</p>
               <p className="text-blue-100 text-xs mt-1">Ready to take</p>
@@ -499,21 +499,21 @@ const StudentDashboard = () => {
       {/* Tab Content */}
       {activeTab === "available" && (
         <Card
-          title="Available Exams"
+          title="Available Interviews"
           subtitle="Take these exams to test your knowledge"
         >
           <Table
             columns={examColumns}
             data={availableExams}
             loading={loading}
-            emptyMessage="No available exams at the moment"
+            emptyMessage="No Available Interviews at the moment"
             actions={(row) => (
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => navigate(`/student/exam/${row.id}`)}
               >
-                Take Exam
+                Take Interview
               </Button>
             )}
           />
@@ -604,7 +604,7 @@ const StudentDashboard = () => {
                     .reverse()
                     .slice(0, 5)
                     .map((result, index) => {
-                      const exam = exams.find((e) => e.id === result.examId);
+                      const exam = exams.find((e) => e.id === result.interviewId);
                       const percentage =
                         (result.score / result.totalQuestions) * 100;
 
@@ -646,4 +646,5 @@ const StudentDashboard = () => {
   );
 };
 
-export default StudentDashboard;
+export default ApplicantDashboard;
+

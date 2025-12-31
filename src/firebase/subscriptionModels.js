@@ -9,7 +9,9 @@
 export const PLAN_TIERS = {
   FREE: 'free',
   PREMIUM: 'premium',
-  VIP: 'vip'
+  VIP: 'vip',
+  MASTER: 'master',
+  ENTERPRISE: 'enterprise'
 };
 
 // Subscription status constants
@@ -37,30 +39,29 @@ export const SCHOOL_ROLES = {
 export const PLAN_CONFIG = {
   free: {
     name: "Free Plan",
-    price: { NGN: 0, USD: 0 },
-    subjectLimit: 3, // Total for entire school
-    studentLimit: 10, // Total for entire school
+    price: { NGN: 0 },
+    subjectLimit: 2, // Total for entire school
+    studentLimit: 2, // Total for entire school
     questionLimit: 10, // Per exam
     features: [
-      "3 subjects total (shared by all teachers)",
-      "Up to 10 students total",
+      "2 subjects total (shared by all teachers)",
+      "Up to 2 applicants total",
       "10 questions per exam",
-      "Best for 1-2 teachers",
+      "Best for trying out",
       "Limited support"
     ],
     billingCycle: null
   },
   premium: {
     name: "Premium Plan",
-    price: { NGN: 1500, USD: 1 },
-    subjectLimit: 6, // Total for entire school
-    studentLimit: { min: 15, max: 20 }, // Total for entire school
+    price: { NGN: 15200 },
+    subjectLimit: 20, // Total for entire school
+    studentLimit: 30, // Total for entire school
     questionLimit: 30, // Per exam
     features: [
-      "6 subjects total (shared by all teachers)",
-      "15-20 students total",
+      "20 subjects total (shared by all teachers)",
+      "30 applicants total",
       "Up to 30 questions per exam",
-      "Best for 2-3 teachers",
       "Priority support",
       "Advanced analytics"
     ],
@@ -68,29 +69,61 @@ export const PLAN_CONFIG = {
   },
   vip: {
     name: "VIP Plan",
-    price: { NGN: 4500, USD: 3 },
-    subjectLimit: { min: 6, max: 10 }, // Total for entire school
-    studentLimit: 30, // Total for entire school
+    price: { NGN: 50000 },
+    subjectLimit: 30, // Total for entire school
+    studentLimit: 100, // Total for entire school
     questionLimit: 100, // Per exam
     features: [
-      "6-10 subjects total (shared by all teachers)",
-      "30 students total",
+      "30 subjects total (shared by all teachers)",
+      "100 applicants total",
       "Up to 100 questions per exam",
-      "Best for 3-4 teachers",
       "24/7 support",
       "Custom features",
       "Priority processing"
     ],
     billingCycle: "monthly"
+  },
+  master: {
+    name: "Master Plan",
+    price: { NGN: 200000 },
+    subjectLimit: "unlimited",
+    studentLimit: 1000, // Total for entire school
+    questionLimit: 500, // Per exam
+    features: [
+      "Unlimited subjects",
+      "1000 applicants total",
+      "Dedicated account manager",
+      "White-label options"
+    ],
+    billingCycle: "monthly"
+  },
+  enterprise: {
+    name: "Enterprise Plan",
+    price: { NGN: null },
+    subjectLimit: "unlimited",
+    studentLimit: "unlimited",
+    questionLimit: "unlimited",
+    features: [
+      "Unlimited everything",
+      "Custom integrations",
+      "Dedicated support team",
+      "SLA guarantee"
+    ],
+    billingCycle: "custom",
+    contactSales: true
   }
 };
 
 /**
  * Get the actual limit value (handles both number and range objects)
- * @param {number|object} limit - The limit value or range object
+ * @param {number|object|string} limit - The limit value or range object
  * @returns {number} - The actual limit to use
  */
 export const getActualLimit = (limit) => {
+  // Handle "unlimited" - return a very high number for comparison purposes
+  if (limit === "unlimited" || limit === "Unlimited") {
+    return Infinity;
+  }
   if (typeof limit === 'number') {
     return limit;
   }

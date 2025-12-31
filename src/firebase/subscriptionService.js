@@ -192,13 +192,68 @@ export const updateTransaction = async (
  * @returns {Promise<array>} - Array of transaction documents
  */
 export const getTransactionHistory = async (teacherId) => {
-  const transactionsQuery = query(
+  // Query by teacherId
+  const teacherQuery = query(
     collection(db, TRANSACTIONS_COLLECTION),
     where("teacherId", "==", teacherId),
   );
 
-  const querySnapshot = await getDocs(transactionsQuery);
-  return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  // Also query by userId (another possible field name)
+  const userQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("userId", "==", teacherId),
+  );
+
+  // Also query by schoolId (in case teacherId is actually a schoolId)
+  const schoolQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("schoolId", "==", teacherId),
+  );
+
+  // Also query by paidByUserId
+  const paidByQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("paidByUserId", "==", teacherId),
+  );
+
+  const [teacherSnapshot, userSnapshot, schoolSnapshot, paidBySnapshot] = await Promise.all([
+    getDocs(teacherQuery),
+    getDocs(userQuery),
+    getDocs(schoolQuery),
+    getDocs(paidByQuery),
+  ]);
+
+  // Combine results and deduplicate by id
+  const transactionsMap = new Map();
+  
+  teacherSnapshot.docs.forEach((doc) => {
+    transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+  });
+  
+  userSnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  schoolSnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  paidBySnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  // Sort by createdAt descending
+  return Array.from(transactionsMap.values()).sort((a, b) => {
+    const dateA = a.createdAt?.seconds || 0;
+    const dateB = b.createdAt?.seconds || 0;
+    return dateB - dateA;
+  });
 };
 
 /**

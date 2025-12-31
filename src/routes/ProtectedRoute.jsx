@@ -6,10 +6,20 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
 
+  // Helper function to get the correct route for a role
+  const getRoleRoute = (userRole) => {
+    const roleRouteMap = {
+      'teacher': '/employer',
+      'school': '/company',
+      'student': '/applicant'
+    };
+    return roleRouteMap[userRole] || `/${userRole}`;
+  };
+
   useEffect(() => {
     // Redirect to appropriate dashboard if user is logged in but accessing wrong route
     if (user && role && requiredRole && role !== requiredRole) {
-      navigate(`/${role}`, { replace: true });
+      navigate(getRoleRoute(role), { replace: true });
     }
   }, [user, role, requiredRole, navigate]);
 
@@ -37,7 +47,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
   // Wrong role
   if (requiredRole && role !== requiredRole) {
-    return <Navigate to={`/${role}`} replace />;
+    return <Navigate to={getRoleRoute(role)} replace />;
   }
 
   return children;

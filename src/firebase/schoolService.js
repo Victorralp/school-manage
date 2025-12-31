@@ -383,9 +383,23 @@ export const getTransactionHistory = async (schoolId) => {
     where("teacherId", "==", schoolId),
   );
 
-  const [schoolSnapshot, teacherSnapshot] = await Promise.all([
+  // Also query by paidByUserId (for transactions where user paid)
+  const paidByQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("paidByUserId", "==", schoolId),
+  );
+
+  // Also query by userId (another possible field name)
+  const userQuery = query(
+    collection(db, TRANSACTIONS_COLLECTION),
+    where("userId", "==", schoolId),
+  );
+
+  const [schoolSnapshot, teacherSnapshot, paidBySnapshot, userSnapshot] = await Promise.all([
     getDocs(schoolQuery),
     getDocs(teacherQuery),
+    getDocs(paidByQuery),
+    getDocs(userQuery),
   ]);
 
   // Combine results and deduplicate by id
@@ -396,6 +410,18 @@ export const getTransactionHistory = async (schoolId) => {
   });
   
   teacherSnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  paidBySnapshot.docs.forEach((doc) => {
+    if (!transactionsMap.has(doc.id)) {
+      transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
+    }
+  });
+
+  userSnapshot.docs.forEach((doc) => {
     if (!transactionsMap.has(doc.id)) {
       transactionsMap.set(doc.id, { id: doc.id, ...doc.data() });
     }

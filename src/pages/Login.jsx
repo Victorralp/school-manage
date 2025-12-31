@@ -34,7 +34,14 @@ const Login = () => {
   // Redirect if already logged in
   React.useEffect(() => {
     if (role) {
-      navigate(`/${role}`);
+      // Map roles to their routes
+      const roleRouteMap = {
+        'teacher': '/employer',
+        'school': '/company',
+        'student': '/applicant'
+      };
+      const redirectPath = roleRouteMap[role] || `/${role}`;
+      navigate(redirectPath);
     }
   }, [role, navigate]);
 
@@ -303,7 +310,7 @@ const Login = () => {
               </svg>
             </div>
             <h1 className="ml-4 text-2xl font-bold text-white">
-              School Exam System
+              Employment Management System
             </h1>
           </div>
 
@@ -437,7 +444,7 @@ const Login = () => {
               </div>
             </div>
             <h2 className="text-2xl font-bold text-gray-900">
-              School Exam System
+              Employment Management System
             </h2>
           </div>
 
@@ -881,7 +888,7 @@ const Login = () => {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-xs text-gray-500">
-              © {new Date().getFullYear()} School Exam Management System. All
+              © {new Date().getFullYear()} Employment Management System. All
               rights reserved.
             </p>
             <p className="text-xs text-gray-400 mt-1">

@@ -43,39 +43,66 @@ export const SubscriptionProvider = ({ children }) => {
           const defaultPlans = {
             free: {
               name: "Free Plan",
-              price: { NGN: 0, USD: 0 },
-              subjectLimit: 3,
-              studentLimit: 10,
+              price: { NGN: 0 },
+              subjectLimit: 2,
+              studentLimit: 2,
               features: [
-                "3 subjects per teacher",
-                "Up to 10 students per teacher",
+                "2 subjects per teacher",
+                "Up to 2 applicants per teacher",
                 "Limited support",
               ],
             },
             premium: {
               name: "Premium Plan",
-              price: { NGN: 1500, USD: 1 },
-              subjectLimit: 6,
-              studentLimit: { min: 15, max: 20 },
+              price: { NGN: 15200 },
+              subjectLimit: 20,
+              studentLimit: 30,
               billingCycle: "monthly",
               features: [
-                "6 subjects per teacher",
-                "15-20 students per teacher",
+                "20 subjects per teacher",
+                "30 applicants per teacher",
                 "Priority support",
                 "Advanced analytics",
               ],
             },
             vip: {
               name: "VIP Plan",
-              price: { NGN: 4500, USD: 3 },
-              subjectLimit: { min: 6, max: 10 },
-              studentLimit: 30,
+              price: { NGN: 50000 },
+              subjectLimit: 30,
+              studentLimit: 100,
               billingCycle: "monthly",
               features: [
-                "6-10 subjects per teacher",
-                "30 students per teacher",
+                "30 subjects per teacher",
+                "100 applicants per teacher",
                 "24/7 support",
                 "Custom features",
+              ],
+            },
+            master: {
+              name: "Master Plan",
+              price: { NGN: 200000 },
+              subjectLimit: "unlimited",
+              studentLimit: 1000,
+              billingCycle: "monthly",
+              features: [
+                "Unlimited subjects",
+                "1000 applicants total",
+                "Dedicated account manager",
+                "White-label options",
+              ],
+            },
+            enterprise: {
+              name: "Enterprise Plan",
+              price: { NGN: null },
+              subjectLimit: "unlimited",
+              studentLimit: "unlimited",
+              billingCycle: "custom",
+              contactSales: true,
+              features: [
+                "Unlimited everything",
+                "Custom integrations",
+                "Dedicated support team",
+                "SLA guarantee",
               ],
             },
           };
@@ -141,6 +168,10 @@ export const SubscriptionProvider = ({ children }) => {
 
   // Helper function to get actual limit value (handles ranges)
   const getActualLimit = useCallback((limitValue) => {
+    // Handle "unlimited" string
+    if (limitValue === "unlimited" || limitValue === "Unlimited") {
+      return Infinity;
+    }
     if (typeof limitValue === "object" && limitValue.max) {
       return limitValue.max;
     }

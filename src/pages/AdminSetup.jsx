@@ -395,7 +395,7 @@ const AdminSetup = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-sm text-slate-500">
-            © {new Date().getFullYear()} School Exam Management System
+            © {new Date().getFullYear()} Employment Management System
           </p>
         </div>
       </div>

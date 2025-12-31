@@ -21,8 +21,8 @@ import { db } from "../firebase/config";
 const FREE_PLAN_CONFIG = {
   planTier: 'free',
   status: 'active',
-  subjectLimit: 3,
-  studentLimit: 10,
+  subjectLimit: 2,
+  studentLimit: 2,
   amount: 0,
   currency: 'NGN',
   expiryDate: null,

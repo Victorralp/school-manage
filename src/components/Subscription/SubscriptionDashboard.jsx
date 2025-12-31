@@ -87,7 +87,7 @@ const BookIcon = ({ className }) => (
 );
 
 /**
- * Users Icon - Used for students
+ * Users Icon - Used for applicants
  */
 const UsersIcon = ({ className }) => (
   <svg
@@ -298,11 +298,11 @@ const SubscriptionDashboard = ({ onUpgradeClick, useSchoolContext = true }) => {
             size="lg"
           />
           
-          {/* Students CircularProgress */}
+          {/* Applicants CircularProgress */}
           <CircularProgress
             current={safeStudentUsage.current}
             limit={safeStudentUsage.limit}
-            label="Students"
+            label="Applicants"
             icon={<UsersIcon className="w-full h-full" />}
             size="lg"
           />
@@ -318,7 +318,7 @@ const SubscriptionDashboard = ({ onUpgradeClick, useSchoolContext = true }) => {
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">Students Used</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Applicants Used</p>
               <p className="text-sm font-semibold text-gray-700">
                 {safeStudentUsage.percentage}% of limit
               </p>

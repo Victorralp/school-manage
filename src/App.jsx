@@ -9,10 +9,10 @@ import { useAuth } from "./context/AuthContext";
 import { SchoolSubscriptionProvider } from "./context/SchoolSubscriptionContext";
 import { useEffect } from "react";
 import AdminDashboard from "./pages/Admin/AdminDashboard";
-import SchoolRoutes from "./pages/School/SchoolRoutes";
-import TeacherRoutes from "./pages/Teacher/TeacherRoutes";
-import StudentDashboard from "./pages/Student/StudentDashboard";
-import TakeExam from "./pages/Student/Exam/TakeExam";
+import CompanyRoutes from "./pages/Company/CompanyRoutes";
+import EmployerRoutes from "./pages/Employer/EmployerRoutes";
+import ApplicantDashboard from "./pages/Applicant/ApplicantDashboard";
+import TakeInterview from "./pages/Applicant/Interview/TakeInterview";
 import Login from "./pages/Login";
 import AdminSetup from "./pages/AdminSetup";
 
@@ -51,7 +51,14 @@ function AppContent() {
     }
 
     if (role) {
-      return <Navigate to={`/${role}`} replace />;
+      // Map roles to their routes
+      const roleRouteMap = {
+        'teacher': '/employer',
+        'school': '/company',
+        'student': '/applicant'
+      };
+      const redirectPath = roleRouteMap[role] || `/${role}`;
+      return <Navigate to={redirectPath} replace />;
     }
 
     return <Welcome />;
@@ -76,40 +83,40 @@ function AppContent() {
         }
       />
 
-      {/* School Routes */}
+      {/* Company Routes */}
       <Route
-        path="/school/*"
+        path="/company/*"
         element={
           <ProtectedRoute requiredRole="school">
-            <SchoolRoutes />
+            <CompanyRoutes />
           </ProtectedRoute>
         }
       />
 
-      {/* Teacher Routes */}
+      {/* Employer Routes */}
       <Route
-        path="/teacher/*"
+        path="/employer/*"
         element={
           <ProtectedRoute requiredRole="teacher">
-            <TeacherRoutes />
+            <EmployerRoutes />
           </ProtectedRoute>
         }
       />
 
-      {/* Student Routes */}
+      {/* Applicant Routes */}
       <Route
-        path="/student"
+        path="/applicant"
         element={
           <ProtectedRoute requiredRole="student">
-            <StudentDashboard />
+            <ApplicantDashboard />
           </ProtectedRoute>
         }
       />
       <Route
-        path="/student/exam/:examId"
+        path="/applicant/interview/:interviewId"
         element={
           <ProtectedRoute requiredRole="student">
-            <TakeExam />
+            <TakeInterview />
           </ProtectedRoute>
         }
       />
